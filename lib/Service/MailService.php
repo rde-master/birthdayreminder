@@ -6,6 +6,7 @@ namespace OCA\BirthdayReminder\Service;
 
 use OCA\BirthdayReminder\Model\Member;
 use OCP\Mail\IMailer;
+use OCP\Util;
 
 /**
  * Sends both kinds of mail via Nextcloud's own configured mail transport
@@ -19,6 +20,8 @@ use OCP\Mail\IMailer;
  * it also preserves line breaks from the admin's template text for free.
  */
 final class MailService {
+    private const SENDER_NAME = 'Geburtstagserinnerung';
+
     public function __construct(
         private IMailer $mailer,
     ) {
@@ -51,6 +54,10 @@ final class MailService {
     private function send(string $toEmail, string $subject, string $body): bool {
         $message = $this->mailer->createMessage();
         $message->setTo([$toEmail]);
+        // Same address Nextcloud's own Mailer defaults to (respects the
+        // configured mail_from_address/mail_domain), just with our own
+        // display name instead of the instance's theming name ("Nextcloud").
+        $message->setFrom([Util::getDefaultEmailAddress('no-reply') => self::SENDER_NAME]);
         $message->setSubject($subject);
         $message->setPlainBody($body);
         $failedRecipients = $this->mailer->send($message);
