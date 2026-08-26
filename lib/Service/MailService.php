@@ -34,7 +34,8 @@ final class MailService {
         // template's own renderSubject(), not from Message::setSubject() -
         // without this line the mail goes out with an empty subject.
         $template->setSubject($subject);
-        $template->addHeader();
+        // No addHeader() on purpose: it renders a large colored banner with
+        // the (theming) logo, which is more than this simple club mail needs.
         $template->addHeading($subject);
         $template->addBodyText($this->reminderBody($member, $daysBefore));
         if ($giftText !== null) {
@@ -55,7 +56,8 @@ final class MailService {
     public function sendCongratulation(string $toEmail, string $subject, string $body): bool {
         $template = $this->mailer->createEMailTemplate('birthdayreminder.congrats', []);
         $template->setSubject($subject);
-        $template->addHeader();
+        // No addHeader() on purpose: it renders a large colored banner with
+        // the (theming) logo, which is more than this simple club mail needs.
         $template->addHeading($subject);
         $template->addBodyText($body);
         $template->addFooter();
