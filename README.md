@@ -22,7 +22,8 @@ Die Mitgliederdaten (Vorname, Nachname, Geburtsdatum, E-Mail, Deaktiviert-Schalt
 | M4b | Persönliche Einstellungsseite | ✅ fertig, verifiziert |
 | M5 | Dashboard-Widget | ✅ fertig, verifiziert |
 | M6 | Deploy auf die echte Vereins-Instanz | ⏳ offen |
-| M7 | Eigenes Mitgliederregister + CSV-Import (löst das Nextcloud-Adressbuch als Datenquelle ab) | 🚧 gerade in Arbeit |
+| M7 | Eigenes Mitgliederregister + CSV-Import (löst das Nextcloud-Adressbuch als Datenquelle ab) | ✅ fertig, verifiziert |
+| M8 | Konfigurierbare tägliche Prüfzeit, manueller Sofort-Versand, einsehbares/löschbares Versand-Log | ✅ fertig, verifiziert |
 
 „Verifiziert" heißt: Ende-zu-Ende live gegen eine echte Nextcloud-34-Testinstanz getestet — siehe [docs/plan.md](docs/plan.md) für die Details und den Architektur-Wechsel weg vom Adressbuch.
 
@@ -48,8 +49,10 @@ Die App registriert sich automatisch im vorhandenen Nextcloud-Cron (`cron.php`) 
 1. **Mitgliederregister** (eigenes Icon oben in der Nextcloud-Menüleiste) öffnen und Mitglieder erfassen — manuell oder per CSV-Import (siehe unten)
 2. **Einstellungen → Verwaltung → Geburtstagserinnerung** öffnen (als Nextcloud-Admin): Empfänger anlegen (Nextcloud-Nutzer, Gruppe oder feste E-Mail-Adresse) mit eigenen Vorlaufzeiten
 3. Optional: runde Geburtstage mit Geschenkvorschlag hinterlegen
-4. Optional: Text der Glückwunsch-Mail anpassen (Platzhalter `{name}`, `{vorname}`, `{alter}`, `{datum}`)
-5. Im Bereich „Zeitplan & manueller Versand": Uhrzeit für die tägliche Prüfung einstellen (Standard 08:00). Dort auch zwei Buttons, um Erinnerungen bzw. Glückwünsche sofort manuell auszulösen (respektiert dieselbe Versand-Historie wie der automatische Lauf, also keine doppelten Mails)
+4. Optional: Text der Glückwunsch-Mail anpassen (Platzhalter `{name}`, `{vorname}`, `{alter}`, `{datum}`, `{wochentag}`)
+5. Im Bereich „Zeitplan & manueller Versand": Uhrzeit für die tägliche Prüfung einstellen (Standard 08:00). Dort auch zwei Buttons, um Erinnerungen bzw. Glückwünsche sofort manuell auszulösen (respektiert dieselbe Versand-Historie wie der automatische Lauf, also keine doppelten Mails), sowie ein Button zum vollständigen Löschen des Versand-Logs (Warnung: hebt die Duplikat-Sperre für den Tag auf)
+
+Das **Versand-Log** (Mitgliederseite, Bereich „Versand-Log", einblendbar) zeigt die letzten 200 tatsächlich verschickten Mails mit Mitgliedsname, Art, Vorlaufzeit, Bezugsjahr und Zeitpunkt — nützlich, um nachzuvollziehen, warum an einem Tag (nicht) verschickt wurde.
 
 Damit auch Nicht-Systemadmins (z.B. der Vorstand) Zugriff auf Mitgliederregister und Admin-Einstellungsseite bekommen, ohne volle Nextcloud-Admins zu sein:
 
@@ -72,6 +75,12 @@ Abgleich-Logik pro Import (Namensvergleich Vorname+Nachname, ohne Berücksichtig
 
 Ein bereits deaktiviertes Mitglied wird **nicht automatisch wieder aktiviert**, nur weil es wieder in der CSV auftaucht — das bleibt bewusst eine manuelle Entscheidung auf der Mitgliederseite.
 
+### Mail-Format
+
+Alle Mails sind bewusst einfacher reiner Text — kein Nextcloud-Logo, keine Fußzeile, kein HTML-Vorlagen-Gerüst (`OCP\Mail\IEMailTemplate` erzeugt sonst einen großen Banner samt Restlayout, das auch ohne Header/Footer noch sichtbare Leerbereiche hinterlässt). Absender-Anzeigename ist „Geburtstagserinnerung" statt des Instanz-Theming-Namens; die eigentliche Absenderadresse kommt weiterhin aus der Nextcloud-Mailkonfiguration.
+
+Die Erinnerungs-Mail an Verantwortliche nennt in Betreff und Text automatisch Geburtsdatum, Wochentag und (falls bekannt) das Alter; ist kein Geburtsjahr hinterlegt, steht explizit „Alter unbekannt" statt es wegzulassen.
+
 ## Entwicklung
 
 ```bash
@@ -89,13 +98,14 @@ Es gibt keinen Frontend-Build-Schritt: `js/` und `css/` sind handgeschriebenes V
 appinfo/          info.xml, routes.php
 lib/
   AppInfo/        Application.php (DI, Dashboard-Widget-Registrierung)
-  BackgroundJob/  DailyReminderJob.php (täglicher Lauf)
+  BackgroundJob/  DailyReminderJob.php (stündliche Prüfung, Versand einmal täglich zur eingestellten Uhrzeit)
   Model/          Member.php (Wertobjekt für die Terminlogik)
   Db/             Member (Mitgliederregister) + Recipient/Offset/Milestone/ReminderLog + Mapper
   Service/        ReminderCalculator (reine Terminlogik), ReminderService (Orchestrierung),
                   MailService, RecipientResolver, MailTemplateRenderer, ConfigService,
                   CsvParser/MemberSyncPlanner (reine CSV-Import-Logik), CsvImportService (Orchestrierung),
-                  ScheduleGate (reine Logik: "ist die eingestellte Tageszeit erreicht?")
+                  ScheduleGate (reine Logik: "ist die eingestellte Tageszeit erreicht?"),
+                  GermanDate (reine Logik: deutsche Wochentagsnamen)
   Controller/      PageController (Mitgliederseite), MembersApiController, AdminApiController, PersonalApiController
   Settings/        AdminSection/AdminSettings (IDelegatedSettings), PersonalSection/PersonalSettings
   Dashboard/       BirthdayWidget.php (IAPIWidgetV2)

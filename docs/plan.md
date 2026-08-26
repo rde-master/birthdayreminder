@@ -46,6 +46,24 @@ App-ID: `birthdayreminder`. Ziel-Kompatibilität: Nextcloud ≥ 28 (aktuell genu
 
 Eine Beispiel-CSV liegt unter [docs/beispiel-mitglieder-import.csv](beispiel-mitglieder-import.csv).
 
+## Erweiterung: Zeitplan, manueller Versand, Versand-Log (M8)
+
+**Konfigurierbare tägliche Prüfzeit** (`ConfigService::getDailyRunTime()`, Default 08:00): `DailyReminderJob` (TimedJob) prüft jetzt **stündlich** statt einmal täglich, führt den eigentlichen Versand aber weiterhin nur einmal pro Tag aus. Die Entscheidung "ist die eingestellte Uhrzeit erreicht und wurde heute noch nicht gelaufen?" übernimmt `lib/Service/ScheduleGate.php` — eine reine, DB-freie Klasse (Eingabe: konfigurierte Zeit, aktueller Zeitpunkt, letztes Lauf-Datum), dadurch ohne Nextcloud-Runtime testbar. Nach einem tatsächlichen Lauf wird `last_run_date` (`ConfigService`) auf heute gesetzt.
+
+**Manueller Sofort-Versand:** `ReminderService::run()` wurde in `runReminders()` und `runCongrats()` aufgeteilt (gemeinsame `buildContext()`-Berechnung), sodass die Admin-Buttons „Erinnerungen jetzt versenden" / „Glückwünsche jetzt versenden" nur die jeweilige Hälfte auslösen — beide nutzen dieselbe Idempotenz-Log-Tabelle wie der automatische Lauf, ein manueller Trigger kann also nie zu doppelten Mails führen (weder untereinander noch gegenüber dem geplanten Lauf).
+
+**Versand-Log einsehbar & löschbar:** `ReminderLogMapper::findRecent()` liefert die letzten 200 Einträge; `MembersApiController::getSendLog()` löst `contact_uid` zu Mitgliedsnamen auf (Fallback „Unbekannt/gelöscht" für inzwischen entfernte Mitglieder). Anzeige auf der Mitgliederseite (`js/members.js`, ein-/ausklappbar, lädt erst bei Klick). Admin-Einstellungsseite hat einen „Log löschen"-Button (`ReminderLogMapper::deleteAll()`) mit Bestätigungsdialog, der explizit auf das Duplikat-Risiko hinweist (Löschen hebt die Idempotenz-Sperre für den restlichen Tag auf).
+
+## Erweiterung: Mail-Format (schlichter Klartext statt HTML-Vorlage)
+
+Ursprünglich nutzte `MailService` `OCP\Mail\IEMailTemplate` (siehe unten, "Mailversand"). Nach mehreren Nutzer-Rückmeldungen (großes Logo, Fußzeile, ein verbleibender weißer Leerbereich selbst ohne Header/Footer-Aufruf, da das HTML-Tabellen-Gerüst der Vorlage bestehen bleibt) wurde komplett auf **reinen Klartext** umgestellt:
+
+- `IMessage::setPlainBody()` statt `createEMailTemplate()`/`useTemplate()` — kein HTML-Body mehr.
+- Absender-Anzeigename fest auf „Geburtstagserinnerung" gesetzt (`Util::getDefaultEmailAddress('no-reply')` für die Adresse selbst, damit `mail_from_address`/`mail_domain` weiterhin respektiert werden — nur der Anzeigename weicht vom Instanz-Theming-Namen ab).
+- Da kein HTML mehr gerendert wird, ist das vorherige "`\n` wird im HTML zu Leerzeichen kollabiert"-Problem der Glückwunsch-Vorlage gegenstandslos.
+- Erinnerungs-Mail (Betreff **und** Text) nennt jetzt Geburtsdatum, Wochentag (`lib/Service/GermanDate.php`, reine Wochentag-Übersetzung ohne intl-Abhängigkeit) und Alter; ist kein Geburtsjahr hinterlegt, steht explizit „Alter unbekannt" statt es wegzulassen.
+- Neuer Platzhalter `{wochentag}` für die admin-editierbare Glückwunsch-Vorlage.
+
 ## Architektur-Überblick
 
 ```
