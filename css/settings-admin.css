@@ -1,11 +1,12 @@
 .birthdayreminder-section {
-	max-width: 900px;
+	max-width: 100%;
 	margin-top: 2em;
 	margin-bottom: 2em;
 	padding: 1.5em 1.75em;
 	border: 1px solid var(--color-border, #dbdbdb);
 	border-radius: var(--border-radius-large, 12px);
 	background-color: var(--color-main-background, #fff);
+	box-sizing: border-box;
 }
 
 .birthdayreminder-section:first-of-type {
@@ -31,20 +32,71 @@
 	margin-bottom: 0.75em;
 }
 
+.birthdayreminder-table-wrap {
+	width: 100%;
+	overflow-x: auto;
+}
+
 .birthdayreminder-table {
 	width: 100%;
+	min-width: 46em;
+	table-layout: fixed;
 	border-collapse: collapse;
 }
 
 .birthdayreminder-table th,
 .birthdayreminder-table td {
 	text-align: left;
-	padding: 0.3em 0.5em;
+	padding: 0.5em 0.5em;
 	vertical-align: middle;
+	border-bottom: 1px solid var(--color-border, #dbdbdb);
+}
+
+.birthdayreminder-table th:nth-child(1),
+.birthdayreminder-table td:nth-child(1) {
+	width: 12%;
+}
+
+.birthdayreminder-table th:nth-child(2),
+.birthdayreminder-table td:nth-child(2) {
+	width: 20%;
+}
+
+.birthdayreminder-table th:nth-child(3),
+.birthdayreminder-table td:nth-child(3) {
+	width: 33%;
+}
+
+.birthdayreminder-table th:nth-child(4),
+.birthdayreminder-table td:nth-child(4) {
+	width: 17%;
+}
+
+.birthdayreminder-table th:nth-child(5),
+.birthdayreminder-table td:nth-child(5) {
+	width: 18%;
 }
 
 .birthdayreminder-table input[type="text"] {
 	width: 100%;
+	box-sizing: border-box;
+}
+
+.birthdayreminder-table td.birthdayreminder-status {
+	border-bottom: none;
+}
+
+.birthdayreminder-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4em;
+	align-items: center;
+}
+
+.birthdayreminder-value-input {
+	width: 100%;
+	min-width: 10em;
+	box-sizing: border-box;
 }
 
 .birthdayreminder-status {
@@ -108,4 +160,27 @@
 	font-size: 0.9em;
 	margin: -0.4em 0 0.75em;
 	max-width: 40em;
+}
+
+.birthdayreminder-add-panel {
+	margin-top: 1.5em;
+	padding-top: 1.25em;
+	border-top: 1px solid var(--color-border, #dbdbdb);
+}
+
+.birthdayreminder-add-panel h4 {
+	font-size: 1em;
+	font-weight: bold;
+	margin: 0 0 0.75em;
+}
+
+.birthdayreminder-add-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(14em, 1fr));
+	gap: 1em;
+	margin-bottom: 1em;
+}
+
+.birthdayreminder-add-grid > div {
+	min-width: 0;
 }

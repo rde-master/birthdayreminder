@@ -129,15 +129,22 @@
 
 	function renderAddressBook(root) {
 		var wrap = section(t('Adressbuch'));
-		var ownerInput = el('input', { type: 'text', placeholder: t('Benutzername des Adressbuch-Besitzers') });
-		var loadButton = el('button', { class: 'button', text: t('Adressbücher laden') });
+		wrap.appendChild(el('p', {
+			text: t('Aus diesem Adressbuch werden die Vereinsmitglieder samt Geburtsdatum und E-Mail-Adresse gelesen. In der Regel ist das ein gemeinsam genutztes Adressbuch, das einem bestimmten Nextcloud-Konto gehört.'),
+		}));
+
+		var ownerInput = el('input', { type: 'text', placeholder: t('z.B. daniel') });
+		var loadButton = el('button', { type: 'button', class: 'button', text: t('Adressbücher laden') });
 		var select = el('select');
-		select.appendChild(el('option', { value: '', text: t('- bitte laden -') }));
-		var saveButton = el('button', { class: 'button primary', text: t('Speichern') });
+		select.appendChild(el('option', { value: '', text: t('- bitte zuerst laden -') }));
+		var saveButton = el('button', { type: 'button', class: 'button primary', text: t('Speichern') });
 		var status = el('span', { class: 'birthdayreminder-status' });
 
 		function fillBooks(books, currentId) {
 			select.innerHTML = '';
+			if (books.length === 0) {
+				select.appendChild(el('option', { value: '', text: t('- bitte zuerst laden -') }));
+			}
 			books.forEach(function (book) {
 				var opt = el('option', { value: String(book.id), text: book.displayName + ' (' + book.uri + ')' });
 				if (currentId !== null && Number(book.id) === Number(currentId)) {
@@ -185,27 +192,49 @@
 			});
 		});
 
+		wrap.appendChild(el('label', { class: 'birthdayreminder-field-label', text: t('Besitzer des Adressbuchs') }));
+		wrap.appendChild(el('p', { class: 'birthdayreminder-hint', text: t('Nextcloud-Benutzername des Kontos, dem das Adressbuch gehört. Nach der Eingabe auf "Adressbücher laden" klicken, um seine Adressbücher unten zur Auswahl anzuzeigen.') }));
 		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [ownerInput, loadButton]));
+
+		wrap.appendChild(el('label', { class: 'birthdayreminder-field-label', text: t('Zu verwendendes Adressbuch') }));
+		wrap.appendChild(el('p', { class: 'birthdayreminder-hint', text: t('Welches der oben geladenen Adressbücher die Vereinsmitglieder enthält. Mit "Speichern" wird es als Quelle für alle Erinnerungen festgelegt.') }));
 		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [select, saveButton, status]));
 		root.appendChild(wrap);
 	}
 
 	// ---- Recipients -----------------------------------------------------
 
+	var RECIPIENT_TYPE_LABELS = {
+		user: t('Nextcloud-Nutzer'),
+		group: t('Gruppe'),
+		email: t('E-Mail-Adresse'),
+	};
+
 	function renderRecipients(root) {
 		var wrap = section(t('Empfänger und Vorlauftage'));
+		wrap.appendChild(el('p', {
+			text: t('Hier legst du zentral für alle Nutzer fest, wer zu welchen Vorlaufzeiten Erinnerungs-Mails bekommt. Das gilt auch für einzelne Nextcloud-Nutzer - du musst nicht warten, bis sie es sich selbst unter "Persönliche Einstellungen" einrichten.'),
+		}));
+
+		var tableWrap = el('div', { class: 'birthdayreminder-table-wrap' });
 		var table = el('table', { class: 'birthdayreminder-table' });
-		var status = el('span', { class: 'birthdayreminder-status' });
-		wrap.appendChild(table);
+		tableWrap.appendChild(table);
+		wrap.appendChild(tableWrap);
+		wrap.appendChild(el('p', {
+			class: 'birthdayreminder-hint',
+			text: t('Typ: Ob der Empfänger ein einzelner Nextcloud-Nutzer, eine ganze Nextcloud-Gruppe (alle Mitglieder bekommen die Mail) oder eine feste E-Mail-Adresse (z.B. für Personen ohne eigenes Nextcloud-Konto) ist.'),
+		}));
+
+		var addStatus = el('span', { class: 'birthdayreminder-status' });
 
 		var typeSelect = el('select');
-		[['user', t('Nextcloud-Nutzer')], ['group', t('Gruppe')], ['email', t('E-Mail-Adresse')]].forEach(function (o) {
-			typeSelect.appendChild(el('option', { value: o[0], text: o[1] }));
+		Object.keys(RECIPIENT_TYPE_LABELS).forEach(function (key) {
+			typeSelect.appendChild(el('option', { value: key, text: RECIPIENT_TYPE_LABELS[key] }));
 		});
-		var valueInput = el('input', { type: 'text', placeholder: t('NC-Benutzer-ID / Gruppen-ID / E-Mail') });
+		var valueInput = el('input', { type: 'text', class: 'birthdayreminder-value-input', placeholder: t('NC-Benutzer-ID / Gruppen-ID / E-Mail') });
 		var newOffsetEditor = createOffsetEditor([30, 14, 2, 1, 0]);
 		var newMilestoneSelect = createMilestoneSelect(false);
-		var addButton = el('button', { class: 'button primary', text: t('Hinzufügen') });
+		var addButton = el('button', { type: 'button', class: 'button primary', text: t('Hinzufügen') });
 
 		function load() {
 			api('GET', '/admin/recipients').then(function (recipients) {
@@ -218,17 +247,23 @@
 			var head = el('tr', {}, [
 				el('th', { text: t('Typ') }),
 				el('th', { text: t('Wert') }),
-				el('th', { text: t('Tage vorher') }),
-				el('th', { text: t('Nur runde Geburtstage') }),
-				el('th', { text: '' }),
+				el('th', { text: t('Vorlaufzeiten') }),
+				el('th', { text: t('Umfang') }),
+				el('th', { text: t('Aktionen') }),
 			]);
 			table.appendChild(head);
+
+			if (recipients.length === 0) {
+				table.appendChild(el('tr', {}, [
+					el('td', { colspan: '5', class: 'birthdayreminder-status', text: t('Noch keine Empfänger eingetragen.') }),
+				]));
+			}
 
 			recipients.forEach(function (r) {
 				var offsetEditor = createOffsetEditor(r.offsets);
 				var milestoneSelect = createMilestoneSelect(r.onlyMilestones);
 
-				var saveRowButton = el('button', { class: 'button', text: t('Speichern') });
+				var saveRowButton = el('button', { type: 'button', class: 'button', text: t('Speichern') });
 				saveRowButton.addEventListener('click', function () {
 					api('POST', '/admin/recipients', {
 						id: r.id,
@@ -239,28 +274,19 @@
 					}).then(load).catch(showError);
 				});
 
-				var deleteButton = el('button', { class: 'button', text: t('Entfernen') });
+				var deleteButton = el('button', { type: 'button', class: 'button', text: t('Entfernen') });
 				deleteButton.addEventListener('click', function () {
 					api('DELETE', '/admin/recipients/' + r.id).then(load).catch(showError);
 				});
 
 				table.appendChild(el('tr', {}, [
-					el('td', { text: r.type }),
+					el('td', { text: RECIPIENT_TYPE_LABELS[r.type] || r.type }),
 					el('td', { text: r.value }),
 					el('td', {}, [offsetEditor.node]),
 					el('td', {}, [milestoneSelect]),
-					el('td', {}, [saveRowButton, deleteButton]),
+					el('td', { class: 'birthdayreminder-actions' }, [saveRowButton, deleteButton]),
 				]));
 			});
-
-			var newRow = el('tr', {}, [
-				el('td', {}, [typeSelect]),
-				el('td', {}, [valueInput]),
-				el('td', {}, [newOffsetEditor.node]),
-				el('td', {}, [newMilestoneSelect]),
-				el('td', {}, [addButton]),
-			]);
-			table.appendChild(newRow);
 		}
 
 		addButton.addEventListener('click', function () {
@@ -276,13 +302,24 @@
 				offsets: newOffsetEditor.getOffsets(),
 			}).then(function () {
 				valueInput.value = '';
+				addStatus.textContent = t('Hinzugefügt.');
 				load();
 			}).catch(function (err) {
-				status.textContent = String(err.message || err);
+				addStatus.textContent = String(err.message || err);
 			});
 		});
 
-		wrap.appendChild(status);
+		var addPanel = el('div', { class: 'birthdayreminder-add-panel' });
+		addPanel.appendChild(el('h4', { text: t('Neuen Empfänger hinzufügen') }));
+		addPanel.appendChild(el('div', { class: 'birthdayreminder-add-grid' }, [
+			el('div', {}, [el('label', { class: 'birthdayreminder-field-label', text: t('Typ') }), typeSelect]),
+			el('div', {}, [el('label', { class: 'birthdayreminder-field-label', text: t('Wert') }), valueInput]),
+			el('div', {}, [el('label', { class: 'birthdayreminder-field-label', text: t('Vorlaufzeiten') }), newOffsetEditor.node]),
+			el('div', {}, [el('label', { class: 'birthdayreminder-field-label', text: t('Umfang') }), newMilestoneSelect]),
+		]));
+		addPanel.appendChild(el('div', { class: 'birthdayreminder-row' }, [addButton, addStatus]));
+		wrap.appendChild(addPanel);
+
 		root.appendChild(wrap);
 		load();
 	}
