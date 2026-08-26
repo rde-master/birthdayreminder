@@ -314,7 +314,7 @@
 
 	function renderCongratsTemplate(root) {
 		var wrap = section(t('Glückwunsch-Mail an das Mitglied'));
-		wrap.appendChild(el('p', { text: t('Platzhalter: {name}, {vorname}, {alter}, {datum}') }));
+		wrap.appendChild(el('p', { text: t('Platzhalter: {name}, {vorname}, {alter}, {datum}, {wochentag}') }));
 
 		var subjectInput = el('input', { type: 'text', style: 'width:100%' });
 		var bodyInput = el('textarea', { rows: '6', style: 'width:100%' });

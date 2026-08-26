@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\BirthdayReminder\Service;
 
+use DateTimeImmutable;
 use OCA\BirthdayReminder\Model\Member;
 use OCP\Mail\IMailer;
 use OCP\Util;
@@ -33,10 +34,10 @@ final class MailService {
      *              logs it and returns the list of failed addresses instead), so
      *              callers must check this return value rather than assume success.
      */
-    public function sendReminder(string $toEmail, Member $member, int $daysBefore, ?string $giftText): bool {
+    public function sendReminder(string $toEmail, Member $member, int $daysBefore, DateTimeImmutable $targetDate, ?int $age, ?string $giftText): bool {
         $subject = $this->reminderSubject($member, $daysBefore);
 
-        $body = $this->reminderBody($member, $daysBefore);
+        $body = $this->reminderBody($member, $daysBefore, $targetDate, $age);
         if ($giftText !== null) {
             $body .= "\n\n🎉 Runder Geburtstag! Geschenkvorschlag: " . $giftText;
         }
@@ -71,8 +72,12 @@ final class MailService {
         return sprintf('%s hat in %d Tag(en) Geburtstag', $member->displayName, $daysBefore);
     }
 
-    private function reminderBody(Member $member, int $daysBefore): string {
+    private function reminderBody(Member $member, int $daysBefore, DateTimeImmutable $targetDate, ?int $age): string {
         $when = $daysBefore === 0 ? 'heute' : sprintf('in %d Tag(en)', $daysBefore);
-        return sprintf('%s hat %s Geburtstag.', $member->displayName, $when);
+        $weekday = GermanDate::weekdayName($targetDate);
+        $dateStr = $targetDate->format('d.m.Y');
+        $ageStr = $age !== null ? sprintf(' und wird %d Jahre alt', $age) : '';
+
+        return sprintf('%s hat %s Geburtstag (%s, %s)%s.', $member->displayName, $when, $weekday, $dateStr, $ageStr);
     }
 }
