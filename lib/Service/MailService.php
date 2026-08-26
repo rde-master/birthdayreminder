@@ -66,7 +66,7 @@ final class MailService {
     }
 
     private function reminderSubject(Member $member, int $daysBefore, ?int $age): string {
-        $ageStr = $age !== null ? sprintf(' (wird %d)', $age) : '';
+        $ageStr = $age !== null ? sprintf(' (wird %d)', $age) : ' (Alter unbekannt)';
         if ($daysBefore === 0) {
             return sprintf('%s hat heute Geburtstag%s', $member->displayName, $ageStr);
         }
@@ -77,7 +77,7 @@ final class MailService {
         $when = $daysBefore === 0 ? 'heute' : sprintf('in %d Tag(en)', $daysBefore);
         $weekday = GermanDate::weekdayName($targetDate);
         $dateStr = $targetDate->format('d.m.Y');
-        $ageStr = $age !== null ? sprintf(' und wird %d Jahre alt', $age) : '';
+        $ageStr = $age !== null ? sprintf(' und wird %d Jahre alt', $age) : ' (das Alter ist nicht bekannt, da kein Geburtsjahr hinterlegt ist)';
 
         return sprintf('%s hat %s Geburtstag (%s, %s)%s.', $member->displayName, $when, $weekday, $dateStr, $ageStr);
     }
