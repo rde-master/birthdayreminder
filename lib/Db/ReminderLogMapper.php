@@ -30,6 +30,17 @@ class ReminderLogMapper extends QBMapper {
         return count($qb->executeQuery()->fetchAll()) > 0;
     }
 
+    /**
+     * @return ReminderLog[] most recent sends first
+     */
+    public function findRecent(int $limit = 200): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')->from($this->getTableName())
+            ->orderBy('sent_at', 'DESC')
+            ->setMaxResults($limit);
+        return $this->findEntities($qb);
+    }
+
     public function logSent(string $contactUid, string $reminderType, int $daysBefore, int $birthdayYear): ReminderLog {
         $log = new ReminderLog();
         $log->setContactUid($contactUid);

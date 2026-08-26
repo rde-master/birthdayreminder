@@ -457,6 +457,94 @@
 		loadMembersList();
 	}
 
+	// ---- Send log (Versand-Log) ---------------------------------------
+
+	function formatLogType(reminderType) {
+		return reminderType === 'congrats' ? t('Glückwunsch ans Mitglied') : t('Erinnerung an Verantwortliche');
+	}
+
+	function formatLogOffset(daysBefore) {
+		if (daysBefore === null) {
+			return '–';
+		}
+		return daysBefore === 0 ? t('am Tag selbst') : daysBefore + ' ' + t('Tage vorher');
+	}
+
+	function formatLogSentAt(sentAt) {
+		return new Date(sentAt * 1000).toLocaleString('de-DE');
+	}
+
+	function renderSendLog(root) {
+		var wrap = section(t('Versand-Log'));
+		wrap.appendChild(el('p', {
+			text: t('Protokoll aller tatsächlich verschickten Erinnerungs- und Glückwunsch-Mails (die letzten 200 Einträge, neueste zuerst). Dient auch der Nachvollziehbarkeit, warum eine Mail an einem Tag nicht erneut verschickt wurde.'),
+		}));
+
+		var toggleButton = el('button', { type: 'button', class: 'button', text: t('Log anzeigen') });
+		var contentWrap = el('div');
+		var loaded = false;
+		var visible = false;
+
+		function renderTable(entries) {
+			contentWrap.innerHTML = '';
+			if (entries.length === 0) {
+				contentWrap.appendChild(el('p', { class: 'birthdayreminder-status', text: t('Noch keine Einträge im Versand-Log.') }));
+				return;
+			}
+			var tableWrap = el('div', { class: 'birthdayreminder-table-wrap' });
+			var table = el('table', { class: 'birthdayreminder-table birthdayreminder-log-table' });
+			table.appendChild(el('tr', {}, [
+				el('th', { text: t('Mitglied') }),
+				el('th', { text: t('Art') }),
+				el('th', { text: t('Vorlaufzeit') }),
+				el('th', { text: t('Bezugsjahr') }),
+				el('th', { text: t('Gesendet am') }),
+			]));
+			entries.forEach(function (entry) {
+				table.appendChild(el('tr', {}, [
+					el('td', { text: entry.memberName }),
+					el('td', { text: formatLogType(entry.reminderType) }),
+					el('td', { text: formatLogOffset(entry.daysBefore) }),
+					el('td', { text: String(entry.birthdayYear) }),
+					el('td', { text: formatLogSentAt(entry.sentAt) }),
+				]));
+			});
+			tableWrap.appendChild(table);
+			contentWrap.appendChild(tableWrap);
+		}
+
+		function loadLog() {
+			contentWrap.innerHTML = '';
+			contentWrap.appendChild(el('p', { class: 'birthdayreminder-status', text: t('Lade …') }));
+			api('GET', '/admin/send-log').then(function (entries) {
+				loaded = true;
+				renderTable(entries);
+			}).catch(function (err) {
+				contentWrap.innerHTML = '';
+				contentWrap.appendChild(el('p', { class: 'birthdayreminder-status', text: String(err.message || err) }));
+			});
+		}
+
+		toggleButton.addEventListener('click', function () {
+			visible = !visible;
+			if (visible) {
+				toggleButton.textContent = t('Log ausblenden');
+				contentWrap.style.display = '';
+				if (!loaded) {
+					loadLog();
+				}
+			} else {
+				toggleButton.textContent = t('Log anzeigen');
+				contentWrap.style.display = 'none';
+			}
+		});
+
+		contentWrap.style.display = 'none';
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [toggleButton]));
+		wrap.appendChild(contentWrap);
+		root.appendChild(wrap);
+	}
+
 	document.addEventListener('DOMContentLoaded', function () {
 		var root = document.getElementById('birthdayreminder-members-page');
 		if (!root) {
@@ -465,5 +553,6 @@
 		renderHeader(root);
 		renderImport(root);
 		renderMembersList(root);
+		renderSendLog(root);
 	});
 })();

@@ -6,6 +6,8 @@ namespace OCA\BirthdayReminder\Controller;
 
 use OCA\BirthdayReminder\Db\Member;
 use OCA\BirthdayReminder\Db\MemberMapper;
+use OCA\BirthdayReminder\Db\ReminderLog;
+use OCA\BirthdayReminder\Db\ReminderLogMapper;
 use OCA\BirthdayReminder\Service\CsvImportService;
 use OCA\BirthdayReminder\Service\CsvParser;
 use OCA\BirthdayReminder\Settings\AdminSettings;
@@ -22,6 +24,7 @@ class MembersApiController extends Controller {
         private MemberMapper $memberMapper,
         private CsvImportService $csvImportService,
         private CsvParser $csvParser,
+        private ReminderLogMapper $reminderLogMapper,
     ) {
         parent::__construct($appName, $request);
     }
@@ -102,6 +105,27 @@ class MembersApiController extends Controller {
         $delimiter = $delimiter !== null && $delimiter !== '' ? $delimiter : $this->csvParser->guessDelimiter($csvContent);
         $result = $this->csvImportService->import($csvContent, $delimiter, $mapping);
         return new JSONResponse($result);
+    }
+
+    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
+    public function getSendLog(): JSONResponse {
+        $logs = $this->reminderLogMapper->findRecent(200);
+
+        $memberNames = [];
+        foreach ($this->memberMapper->findAll() as $member) {
+            $memberNames[(string)$member->getId()] = $member->getDisplayName();
+        }
+
+        return new JSONResponse(array_map(function (ReminderLog $log) use ($memberNames): array {
+            return [
+                'id' => $log->getId(),
+                'memberName' => $memberNames[$log->getContactUid()] ?? ('Unbekannt/gelöscht (ID ' . $log->getContactUid() . ')'),
+                'reminderType' => $log->getReminderType(),
+                'daysBefore' => $log->getDaysBefore() === ReminderLog::NO_OFFSET ? null : $log->getDaysBefore(),
+                'birthdayYear' => $log->getBirthdayYear(),
+                'sentAt' => $log->getSentAt(),
+            ];
+        }, $logs));
     }
 
     private function serializeMember(Member $m): array {

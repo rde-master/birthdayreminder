@@ -60,3 +60,19 @@
 	height: 1.2em;
 	cursor: pointer;
 }
+
+/* Versand-Log: 5 columns, no inputs - a simple read-only table. */
+.birthdayreminder-log-table {
+	min-width: 50em;
+}
+
+.birthdayreminder-log-table th:nth-child(1),
+.birthdayreminder-log-table td:nth-child(1) { width: 22%; } /* Mitglied */
+.birthdayreminder-log-table th:nth-child(2),
+.birthdayreminder-log-table td:nth-child(2) { width: 25%; } /* Art */
+.birthdayreminder-log-table th:nth-child(3),
+.birthdayreminder-log-table td:nth-child(3) { width: 18%; } /* Vorlaufzeit */
+.birthdayreminder-log-table th:nth-child(4),
+.birthdayreminder-log-table td:nth-child(4) { width: 10%; } /* Bezugsjahr */
+.birthdayreminder-log-table th:nth-child(5),
+.birthdayreminder-log-table td:nth-child(5) { width: 25%; } /* Gesendet am */

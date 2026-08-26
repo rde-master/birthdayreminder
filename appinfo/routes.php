@@ -10,6 +10,7 @@ return [
         ['name' => 'membersApi#saveMember', 'url' => '/admin/members', 'verb' => 'POST'],
         ['name' => 'membersApi#deleteMember', 'url' => '/admin/members/{id}', 'verb' => 'DELETE', 'requirements' => ['id' => '\d+']],
         ['name' => 'membersApi#importMembers', 'url' => '/admin/members/import', 'verb' => 'POST'],
+        ['name' => 'membersApi#getSendLog', 'url' => '/admin/send-log', 'verb' => 'GET'],
 
         ['name' => 'adminApi#getRecipients', 'url' => '/admin/recipients', 'verb' => 'GET'],
         ['name' => 'adminApi#saveRecipient', 'url' => '/admin/recipients', 'verb' => 'POST'],
