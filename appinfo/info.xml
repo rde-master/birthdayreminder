@@ -5,7 +5,7 @@
     <name>Geburtstagserinnerung</name>
     <summary>Erinnerungs- und Glückwunsch-Mails zu Geburtstagen von Vereinsmitgliedern aus einem Nextcloud-Adressbuch.</summary>
     <description><![CDATA[Liest die Geburtstage von Vereinsmitgliedern aus einem gemeinsamen Nextcloud-Adressbuch und verschickt zu frei konfigurierbaren Vorlaufzeiten Erinnerungs-Mails an Verantwortliche sowie eine Glückwunsch-Mail an das Mitglied selbst. Zeigt außerdem die nächsten anstehenden Geburtstage als Dashboard-Widget.]]></description>
-    <version>0.2.1</version>
+    <version>0.2.2</version>
     <licence>agpl</licence>
     <author>Verein</author>
     <namespace>BirthdayReminder</namespace>
@@ -29,12 +29,18 @@
     </commands>
     <settings>
         <!--
-        admin-delegation (not plain admin/admin-section): lets a real Nextcloud
-        admin grant a chosen group (e.g. "Vorstand") access to this settings
-        page without giving them full instance-admin rights, see AdminSettings.
+        Plain <admin>/<admin-section> - NOT <admin-delegation>: that tag is
+        for registering a delegatable permission with no settings page of its
+        own (see apps/webhook_listeners for that pattern). A real, visible
+        settings page that also supports delegation (like apps/dav's
+        CalDAVSettings) is registered as a normal <admin> setting while the
+        class implements IDelegatedSettings - that's what makes it show up
+        in the standard Administration nav for full admins immediately, and
+        become delegatable to a chosen group (e.g. "Vorstand") via
+        Settings -> Administration -> Delegation / `occ admin-delegation:add`.
         -->
-        <admin-delegation>OCA\BirthdayReminder\Settings\AdminSettings</admin-delegation>
-        <admin-delegation-section>OCA\BirthdayReminder\Settings\AdminSection</admin-delegation-section>
+        <admin>OCA\BirthdayReminder\Settings\AdminSettings</admin>
+        <admin-section>OCA\BirthdayReminder\Settings\AdminSection</admin-section>
         <personal>OCA\BirthdayReminder\Settings\PersonalSettings</personal>
         <personal-section>OCA\BirthdayReminder\Settings\PersonalSection</personal-section>
     </settings>
