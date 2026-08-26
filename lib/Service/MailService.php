@@ -17,7 +17,13 @@ final class MailService {
     ) {
     }
 
-    public function sendReminder(string $toEmail, Member $member, int $daysBefore, ?string $giftText): void {
+    /**
+     * @return bool true if the mail was handed off without a failed recipient.
+     *              IMailer::send() does not throw on delivery failure (Nextcloud
+     *              logs it and returns the list of failed addresses instead), so
+     *              callers must check this return value rather than assume success.
+     */
+    public function sendReminder(string $toEmail, Member $member, int $daysBefore, ?string $giftText): bool {
         $subject = $this->reminderSubject($member, $daysBefore);
 
         $template = $this->mailer->createEMailTemplate('birthdayreminder.reminder', [
@@ -39,10 +45,14 @@ final class MailService {
         $message = $this->mailer->createMessage();
         $message->setTo([$toEmail]);
         $message->useTemplate($template);
-        $this->mailer->send($message);
+        $failedRecipients = $this->mailer->send($message);
+        return empty($failedRecipients);
     }
 
-    public function sendCongratulation(string $toEmail, string $subject, string $body): void {
+    /**
+     * @return bool true if the mail was handed off without a failed recipient.
+     */
+    public function sendCongratulation(string $toEmail, string $subject, string $body): bool {
         $template = $this->mailer->createEMailTemplate('birthdayreminder.congrats', []);
         $template->setSubject($subject);
         $template->addHeader();
@@ -53,7 +63,8 @@ final class MailService {
         $message = $this->mailer->createMessage();
         $message->setTo([$toEmail]);
         $message->useTemplate($template);
-        $this->mailer->send($message);
+        $failedRecipients = $this->mailer->send($message);
+        return empty($failedRecipients);
     }
 
     private function reminderSubject(Member $member, int $daysBefore): string {

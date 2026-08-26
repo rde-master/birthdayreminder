@@ -111,10 +111,23 @@ final class ReminderService {
                     ? $this->milestoneMapper->findByAge($match['age'])?->getGiftText()
                     : null;
 
+                // Only mark as sent if every recipient address for this match succeeded;
+                // a partial failure retries for everyone on the next run rather than
+                // silently and permanently dropping the reminder for the failed address.
+                $allSucceeded = true;
                 foreach ($emails as $email) {
-                    $this->mailService->sendReminder($email, $member, $daysBefore, $giftText);
+                    if (!$this->mailService->sendReminder($email, $member, $daysBefore, $giftText)) {
+                        $allSucceeded = false;
+                        $this->logger->error('birthdayreminder: reminder mail delivery failed', [
+                            'contactUid' => $member->uid,
+                            'toEmail' => $email,
+                            'daysBefore' => $daysBefore,
+                        ]);
+                    }
                 }
-                $this->reminderLogMapper->logSent($member->uid, ReminderLog::TYPE_OFFSET, $daysBefore, $targetYear);
+                if ($allSucceeded) {
+                    $this->reminderLogMapper->logSent($member->uid, ReminderLog::TYPE_OFFSET, $daysBefore, $targetYear);
+                }
             }
         }
     }
@@ -148,8 +161,12 @@ final class ReminderService {
             $subject = $this->templateRenderer->render($this->configService->getCongratsSubjectTemplate(), $placeholders);
             $body = $this->templateRenderer->render($this->configService->getCongratsBodyTemplate(), $placeholders);
 
-            $this->mailService->sendCongratulation($member->email, $subject, $body);
-            $this->reminderLogMapper->logSent($member->uid, ReminderLog::TYPE_CONGRATS, ReminderLog::NO_OFFSET, $targetYear);
+            $succeeded = $this->mailService->sendCongratulation($member->email, $subject, $body);
+            if ($succeeded) {
+                $this->reminderLogMapper->logSent($member->uid, ReminderLog::TYPE_CONGRATS, ReminderLog::NO_OFFSET, $targetYear);
+            } else {
+                $this->logger->error('birthdayreminder: congrats mail delivery failed', ['contactUid' => $member->uid]);
+            }
         }
     }
 
