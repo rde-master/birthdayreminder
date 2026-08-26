@@ -78,7 +78,8 @@
 .birthdayreminder-milestones-table th:nth-child(3),
 .birthdayreminder-milestones-table td:nth-child(3) { width: 20%; } /* Aktionen */
 
-.birthdayreminder-table input[type="text"] {
+.birthdayreminder-table input[type="text"],
+.birthdayreminder-table input[type="email"] {
 	width: 100%;
 	box-sizing: border-box;
 }
