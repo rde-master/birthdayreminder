@@ -60,4 +60,28 @@ final class ReminderCalculator {
     public function isMilestoneAge(?int $age, array $milestoneAges): bool {
         return $age !== null && in_array($age, $milestoneAges, true);
     }
+
+    /**
+     * Days until the member's next birthday (0 = today), used for the
+     * dashboard widget's "upcoming birthdays" list. Checks this year first,
+     * then next year, so it also works right after a birthday just passed.
+     *
+     * @return array{daysUntil: int, targetDate: DateTimeImmutable, age: ?int}
+     */
+    public function daysUntilNextBirthday(Member $member, DateTimeImmutable $today): array {
+        $todayYear = (int)$today->format('Y');
+        foreach ([$todayYear, $todayYear + 1] as $year) {
+            [$month, $day] = $this->normalizedBirthday($member, $year);
+            $candidate = new DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day));
+            if ($candidate >= $today) {
+                return [
+                    'daysUntil' => (int)$today->diff($candidate)->days,
+                    'targetDate' => $candidate,
+                    'age' => $member->hasKnownYear() ? $year - $member->year : null,
+                ];
+            }
+        }
+        // Unreachable: the next-year candidate is always >= today.
+        throw new \LogicException('could not determine next birthday');
+    }
 }

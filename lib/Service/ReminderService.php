@@ -35,6 +35,32 @@ final class ReminderService {
     ) {
     }
 
+    /**
+     * Upcoming birthdays sorted by proximity, for the Dashboard widget.
+     * Shares the same contact-reading and date logic as run() so the widget
+     * can never drift out of sync with what the daily job actually matches.
+     *
+     * @return array<int, array{member: Member, daysUntil: int, targetDate: DateTimeImmutable, age: ?int}>
+     */
+    public function getUpcomingBirthdays(int $limit = 7): array {
+        $addressBookId = $this->configService->getAddressBookId();
+        if ($addressBookId === null) {
+            return [];
+        }
+
+        $today = new DateTimeImmutable('today');
+        $members = $this->contactsGateway->getMembers($addressBookId);
+
+        $upcoming = array_map(
+            fn (Member $member) => array_merge(['member' => $member], $this->calculator->daysUntilNextBirthday($member, $today)),
+            $members
+        );
+
+        usort($upcoming, static fn ($a, $b) => $a['daysUntil'] <=> $b['daysUntil']);
+
+        return array_slice($upcoming, 0, $limit);
+    }
+
     public function run(?DateTimeImmutable $today = null): void {
         $addressBookId = $this->configService->getAddressBookId();
         if ($addressBookId === null) {

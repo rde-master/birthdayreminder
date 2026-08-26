@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\BirthdayReminder\AppInfo;
 
+use OCA\BirthdayReminder\Dashboard\BirthdayWidget;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
@@ -17,8 +18,7 @@ class Application extends App implements IBootstrap {
     }
 
     public function register(IRegistrationContext $context): void {
-        // Dashboard widget registration is added here in M5, once
-        // Dashboard\BirthdayWidget exists.
+        $context->registerDashboardWidget(BirthdayWidget::class);
     }
 
     public function boot(IBootContext $context): void {

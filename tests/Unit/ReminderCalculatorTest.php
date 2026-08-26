@@ -82,4 +82,43 @@ final class ReminderCalculatorTest extends TestCase {
         self::assertFalse($this->calculator->isMilestoneAge(19, [18, 30, 50]));
         self::assertFalse($this->calculator->isMilestoneAge(null, [18, 30, 50]));
     }
+
+    public function testDaysUntilNextBirthdayLaterThisYear(): void {
+        $member = new Member('u1', 'Anna Muster', 'anna@example.com', 3, 15, 1990);
+        $today = new DateTimeImmutable('2026-03-01');
+
+        $result = $this->calculator->daysUntilNextBirthday($member, $today);
+
+        self::assertSame(14, $result['daysUntil']);
+        self::assertSame('2026-03-15', $result['targetDate']->format('Y-m-d'));
+        self::assertSame(36, $result['age']);
+    }
+
+    public function testDaysUntilNextBirthdayIsZeroToday(): void {
+        $member = new Member('u1', 'Anna Muster', null, 3, 15, 1990);
+        $today = new DateTimeImmutable('2026-03-15');
+
+        $result = $this->calculator->daysUntilNextBirthday($member, $today);
+
+        self::assertSame(0, $result['daysUntil']);
+    }
+
+    public function testDaysUntilNextBirthdayRollsOverToNextYearWhenAlreadyPassed(): void {
+        $member = new Member('u1', 'Anna Muster', null, 3, 15, 1990);
+        $today = new DateTimeImmutable('2026-03-16');
+
+        $result = $this->calculator->daysUntilNextBirthday($member, $today);
+
+        self::assertSame('2027-03-15', $result['targetDate']->format('Y-m-d'));
+        self::assertSame(37, $result['age']);
+    }
+
+    public function testDaysUntilNextBirthdayHandlesLeapDay(): void {
+        $member = new Member('u1', 'Leo Schalt', null, 2, 29, 2000);
+        $today = new DateTimeImmutable('2027-02-01'); // 2027 is not a leap year
+
+        $result = $this->calculator->daysUntilNextBirthday($member, $today);
+
+        self::assertSame('2027-02-28', $result['targetDate']->format('Y-m-d'));
+    }
 }
