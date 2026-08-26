@@ -41,7 +41,7 @@ final class MailService {
         if ($giftText !== null) {
             $template->addBodyText('🎉 Runder Geburtstag! Geschenkvorschlag: ' . $giftText);
         }
-        $template->addFooter();
+        // No addFooter() on purpose: drops the "Nextcloud - ..." branding line.
 
         $message = $this->mailer->createMessage();
         $message->setTo([$toEmail]);
@@ -59,8 +59,12 @@ final class MailService {
         // No addHeader() on purpose: it renders a large colored banner with
         // the (theming) logo, which is more than this simple club mail needs.
         $template->addHeading($subject);
-        $template->addBodyText($body);
-        $template->addFooter();
+        // addBodyText() HTML-escapes $body and drops it into a plain <p>,
+        // where literal "\n" line breaks from the admin's template text are
+        // just collapsed whitespace - pass an explicit HTML variant with
+        // "\n" turned into <br> so the paragraph breaks actually show up.
+        $template->addBodyText(nl2br(htmlspecialchars($body)), $body);
+        // No addFooter() on purpose: drops the "Nextcloud - ..." branding line.
 
         $message = $this->mailer->createMessage();
         $message->setTo([$toEmail]);
