@@ -35,7 +35,7 @@ final class MailService {
      *              callers must check this return value rather than assume success.
      */
     public function sendReminder(string $toEmail, Member $member, int $daysBefore, DateTimeImmutable $targetDate, ?int $age, ?string $giftText): bool {
-        $subject = $this->reminderSubject($member, $daysBefore);
+        $subject = $this->reminderSubject($member, $daysBefore, $age);
 
         $body = $this->reminderBody($member, $daysBefore, $targetDate, $age);
         if ($giftText !== null) {
@@ -65,11 +65,12 @@ final class MailService {
         return empty($failedRecipients);
     }
 
-    private function reminderSubject(Member $member, int $daysBefore): string {
+    private function reminderSubject(Member $member, int $daysBefore, ?int $age): string {
+        $ageStr = $age !== null ? sprintf(' (wird %d)', $age) : '';
         if ($daysBefore === 0) {
-            return sprintf('%s hat heute Geburtstag', $member->displayName);
+            return sprintf('%s hat heute Geburtstag%s', $member->displayName, $ageStr);
         }
-        return sprintf('%s hat in %d Tag(en) Geburtstag', $member->displayName, $daysBefore);
+        return sprintf('%s hat in %d Tag(en) Geburtstag%s', $member->displayName, $daysBefore, $ageStr);
     }
 
     private function reminderBody(Member $member, int $daysBefore, DateTimeImmutable $targetDate, ?int $age): string {
