@@ -255,7 +255,7 @@
 	function birthdateFields(day, month, year) {
 		var dayInput = el('input', { type: 'number', min: '1', max: '31', class: 'birthdayreminder-day-input', value: day !== undefined ? String(day) : '' });
 		var monthInput = el('input', { type: 'number', min: '1', max: '12', class: 'birthdayreminder-day-input', value: month !== undefined ? String(month) : '' });
-		var yearInput = el('input', { type: 'number', min: '1900', max: '2100', class: 'birthdayreminder-day-input', placeholder: t('Jahr (optional)'), value: year ? String(year) : '' });
+		var yearInput = el('input', { type: 'number', min: '1900', max: '2100', class: 'birthdayreminder-year-input', placeholder: t('Jahr (optional)'), value: year ? String(year) : '' });
 		var wrap = el('div', { class: 'birthdayreminder-row' }, [
 			dayInput, el('span', { text: '.' }), monthInput, el('span', { text: '.' }), yearInput,
 		]);

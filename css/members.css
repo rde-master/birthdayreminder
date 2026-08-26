@@ -19,21 +19,21 @@
  * than E-Mail, which needs room for longer addresses.
  */
 .birthdayreminder-members-table {
-	min-width: 70em;
+	min-width: 74em;
 }
 
 .birthdayreminder-members-table th:nth-child(1),
-.birthdayreminder-members-table td:nth-child(1) { width: 11%; } /* Vorname */
+.birthdayreminder-members-table td:nth-child(1) { width: 10%; } /* Vorname */
 .birthdayreminder-members-table th:nth-child(2),
-.birthdayreminder-members-table td:nth-child(2) { width: 11%; } /* Nachname */
+.birthdayreminder-members-table td:nth-child(2) { width: 10%; } /* Nachname */
 .birthdayreminder-members-table th:nth-child(3),
-.birthdayreminder-members-table td:nth-child(3) { width: 20%; } /* Geburtsdatum */
+.birthdayreminder-members-table td:nth-child(3) { width: 22%; } /* Geburtsdatum (Tag/Monat/Jahr-Felder) */
 .birthdayreminder-members-table th:nth-child(4),
-.birthdayreminder-members-table td:nth-child(4) { width: 24%; } /* E-Mail */
+.birthdayreminder-members-table td:nth-child(4) { width: 23%; } /* E-Mail */
 .birthdayreminder-members-table th:nth-child(5),
 .birthdayreminder-members-table td:nth-child(5) { width: 4%; } /* Deaktiviert */
 .birthdayreminder-members-table th:nth-child(6),
-.birthdayreminder-members-table td:nth-child(6) { width: 15%; } /* Bemerkung */
+.birthdayreminder-members-table td:nth-child(6) { width: 16%; } /* Bemerkung */
 .birthdayreminder-members-table th:nth-child(7),
 .birthdayreminder-members-table td:nth-child(7) { width: 15%; } /* Aktionen */
 
@@ -47,4 +47,16 @@
 	width: 100%;
 	box-sizing: border-box;
 	font-size: 0.9em;
+}
+
+/*
+ * Force light native rendering for this checkbox: with the system/Nextcloud
+ * in dark mode, an unstyled checkbox otherwise picks up the browser's dark
+ * native widget style, which renders the unchecked box as solid black.
+ */
+.birthdayreminder-members-table input[type="checkbox"] {
+	color-scheme: light;
+	width: 1.2em;
+	height: 1.2em;
+	cursor: pointer;
 }

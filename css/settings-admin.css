@@ -147,6 +147,10 @@
 	width: 4em;
 }
 
+.birthdayreminder-year-input {
+	width: 6em;
+}
+
 .birthdayreminder-field-label {
 	display: block;
 	font-weight: bold;
