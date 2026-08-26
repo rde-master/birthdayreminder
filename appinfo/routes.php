@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 return [
     'routes' => [
-        ['name' => 'adminApi#getAddressBooks', 'url' => '/admin/addressbooks', 'verb' => 'GET'],
-        ['name' => 'adminApi#saveAddressBook', 'url' => '/admin/addressbook', 'verb' => 'POST'],
+        ['name' => 'page#index', 'url' => '/', 'verb' => 'GET'],
+
+        ['name' => 'membersApi#getMembers', 'url' => '/admin/members', 'verb' => 'GET'],
+        ['name' => 'membersApi#saveMember', 'url' => '/admin/members', 'verb' => 'POST'],
+        ['name' => 'membersApi#deleteMember', 'url' => '/admin/members/{id}', 'verb' => 'DELETE', 'requirements' => ['id' => '\d+']],
+        ['name' => 'membersApi#importMembers', 'url' => '/admin/members/import', 'verb' => 'POST'],
 
         ['name' => 'adminApi#getRecipients', 'url' => '/admin/recipients', 'verb' => 'GET'],
         ['name' => 'adminApi#saveRecipient', 'url' => '/admin/recipients', 'verb' => 'POST'],

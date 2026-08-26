@@ -12,7 +12,39 @@ Zusätzlich zur reinen Terminerinnerung: Für **runde Geburtstage** (frei defini
 
 App-ID: `birthdayreminder`. Ziel-Kompatibilität: Nextcloud ≥ 28 (aktuell genug für moderne APIs wie das Dashboard-Widget ohne eigenes JS, alt genug um auf dem all-inkl-Server sicher vorhanden zu sein).
 
-> **Hinweis:** Dies ist der ursprünglich abgestimmte Plan (Stand M1-Freigabe). Die tatsächliche Umsetzung wich an einer Stelle bewusst ab: Statt Vue/Webpack (siehe unten) wurde für die Einstellungsseiten **Vanilla JS ohne Build-Schritt** verwendet, um auf dem Shared-Hosting-Server keine Node-Toolchain zu benötigen. Den aktuellen Umsetzungsstand beschreibt die [README.md](../README.md) im Projekt-Root.
+> **Hinweis:** Dies ist der ursprünglich abgestimmte Plan (Stand M1-Freigabe). Die tatsächliche Umsetzung wich an zwei Stellen bewusst ab: Statt Vue/Webpack (siehe unten) wurde für die Einstellungsseiten **Vanilla JS ohne Build-Schritt** verwendet, um auf dem Shared-Hosting-Server keine Node-Toolchain zu benötigen; und der ursprünglich als Datenquelle vorgesehene **Nextcloud-Adressbuch-Ansatz wurde nach M6 verworfen** (siehe „Architektur-Wechsel: eigenes Mitgliederregister" direkt unten) zugunsten eines eigenen Mitgliederregisters mit CSV-Import. Den aktuellen Umsetzungsstand beschreibt die [README.md](../README.md) im Projekt-Root.
+
+## Architektur-Wechsel: eigenes Mitgliederregister statt Nextcloud-Adressbuch
+
+**Warum:** Nach ersten Tests mit der echten Nextcloud-Contacts-App stellte sich diese für den Zweck als zu unübersichtlich heraus. Der ursprüngliche Ansatz (Kontakte lesen über `CardDavBackend`, Adressbuch-Auswahl in den Admin-Einstellungen) wurde daher komplett durch ein **eigenes, app-internes Mitgliederregister** ersetzt. Alles unterhalb von „Kontakte lesen (Adressbuch/BDAY/EMAIL)" und die dortige Datenquellen-Beschreibung ist damit **historisch** — `ContactsGateway` wurde entfernt, `ConfigService::addressbook_owner/addressbook_id` ebenfalls.
+
+**Neues Datenmodell:** Tabelle `oc_birthdayreminder_member` (statt Adressbuch-Zugriff):
+
+| Spalte | Typ | Hinweis |
+|---|---|---|
+| id | BIGINT PK | |
+| first_name | STRING(255) | Vorname |
+| last_name | STRING(255) | Nachname |
+| birth_day | INTEGER | |
+| birth_month | INTEGER | |
+| birth_year | INTEGER, nullable | unbekanntes Geburtsjahr weiterhin unterstützt |
+| email | STRING(255), nullable | |
+| disabled | BOOLEAN, default false | deaktiviert = keine Mails mehr, weder Erinnerung noch Glückwunsch |
+| remark | TEXT, nullable | „Bemerkung" |
+| created_at / updated_at | INTEGER | |
+
+`ReminderService`/`DebugUpcoming` lesen jetzt über `MemberMapper::findAllActive()` statt über `ContactsGateway`; `MemberMapper::toModelMember()`-Konvertierung baut daraus das bestehende `Model\Member`-Wertobjekt, sodass `ReminderCalculator`, `MailService` etc. unverändert bleiben.
+
+**Eigene Seite in der Nextcloud-Menüleiste** (`<navigations>` in `info.xml`, `PageController` + `templates/main.php` + `js/members.js`): Mitgliederliste (manuell anlegen/bearbeiten/löschen) plus CSV-Import. Zugriff ist wie die Admin-Einstellungsseite über `#[AuthorizedAdminSetting(settings: AdminSettings::class)]` auf die „Vorstand"-Delegation beschränkt (Mitgliederdaten sind personenbezogen). Von dort aus verlinken Buttons zu den persönlichen Einstellungen und den Admin-Einstellungen.
+
+**CSV-Import** (`lib/Service/CsvParser.php`, `MemberSyncPlanner.php`, `CsvImportService.php`):
+- Spalten-Zuordnung passiert **client-seitig**: die CSV wird im Browser per `FileReader` gelesen, Kopfzeile geparst, der Admin ordnet die Spalten den Feldern Vorname/Nachname/Geburtsdatum (Pflicht) und E-Mail (optional) per Dropdown zu. Erst der fertige Import-Request (CSV-Inhalt + Mapping) geht ans Backend — kein mehrstufiger Server-Upload/Session-Zustand nötig.
+- Abgleich anhand von Vorname+Nachname (Groß-/Kleinschreibung wird ignoriert): neuer Name → anlegen; bekannter Name mit geänderten Werten → aktualisieren; bekannter Name unverändert → nichts tun; bekannter Name fehlt in der CSV → deaktivieren, mit Bemerkung „Deaktiviert da bei Import nicht mehr vorhanden" (wird an eine vorhandene Bemerkung angehängt statt sie zu überschreiben, und nicht doppelt eingetragen bei wiederholtem Import).
+- **Bewusst konservativ:** Ein bereits deaktiviertes Mitglied wird beim Import **nie automatisch wieder aktiviert**, selbst wenn der Name wieder in der CSV auftaucht — das bleibt eine manuelle Entscheidung auf der Mitgliederseite, damit ein Import nicht versehentlich eine bewusste manuelle Deaktivierung aufhebt.
+- `MemberSyncPlanner::plan()` ist reine, DB-freie Logik (Diffing anhand einfacher Arrays) und dadurch ohne Nextcloud-Runtime testbar; `CsvImportService` lädt den aktuellen Bestand, ruft den Planner auf und wendet den Plan über `MemberMapper` an.
+- Geburtsdatum-Formate: `TT.MM.JJJJ`, `TT.MM.` (kein Jahr bekannt) und ISO `JJJJ-MM-TT`.
+
+Eine Beispiel-CSV liegt unter [docs/beispiel-mitglieder-import.csv](beispiel-mitglieder-import.csv).
 
 ## Architektur-Überblick
 

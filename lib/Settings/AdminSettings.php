@@ -36,8 +36,6 @@ class AdminSettings implements IDelegatedSettings {
     public function getAuthorizedAppConfig(): array {
         return [
             Application::APP_ID => [
-                '/addressbook_owner/',
-                '/addressbook_id/',
                 '/congrats_subject_template/',
                 '/congrats_body_template/',
             ],

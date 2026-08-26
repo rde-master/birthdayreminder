@@ -1,6 +1,6 @@
 # Geburtstagserinnerung (birthdayreminder)
 
-Nextcloud-App für Vereine: liest die Geburtstage der Mitglieder aus einem gemeinsamen Nextcloud-Adressbuch und verschickt
+Nextcloud-App für Vereine: verwaltet die Vereinsmitglieder in einem eigenen Mitgliederregister und verschickt
 
 - **Erinnerungs-Mails an Verantwortliche** zu frei konfigurierbaren Vorlaufzeiten (z.B. 30/14/2/1 Tage vorher + am Tag selbst)
 - **eine Glückwunsch-Mail direkt ans Mitglied**, sofern eine E-Mail-Adresse hinterlegt ist
@@ -9,25 +9,26 @@ Nextcloud-App für Vereine: liest die Geburtstage der Mitglieder aus einem gemei
 
 Läuft komplett auf dem Nextcloud-Server selbst (eigener Background-Job, nutzt den bereits konfigurierten Mailer) — kein externes Skript, kein separater Cron-Eintrag, kein Node/Build-Schritt auf dem Server nötig.
 
+Die Mitgliederdaten (Vorname, Nachname, Geburtsdatum, E-Mail, Deaktiviert-Schalter, Bemerkung) liegen in einem **eigenen Mitgliederregister** der App — nicht in den Nextcloud-Kontakten. Das Register hat eine eigene Seite in der Nextcloud-Menüleiste, inklusive **CSV-Import** mit Spalten-Zuordnung, der neue Mitglieder anlegt, geänderte aktualisiert und beim Import fehlende automatisch deaktiviert.
+
 ## Status
 
 | Meilenstein | Beschreibung | Status |
 |---|---|---|
-| M1 | Kontakte lesen + Terminberechnung | ✅ fertig, verifiziert |
+| M1 | Terminberechnung | ✅ fertig, verifiziert |
 | M2 | Persistenz + Erinnerungs-Mails | ✅ fertig, verifiziert |
 | M3 | Glückwunsch-Mail ans Mitglied | ✅ fertig, verifiziert |
 | M4 | Admin-Einstellungsseite (Gruppen-Delegation) | ✅ fertig, verifiziert |
 | M4b | Persönliche Einstellungsseite | ✅ fertig, verifiziert |
 | M5 | Dashboard-Widget | ✅ fertig, verifiziert |
 | M6 | Deploy auf die echte Vereins-Instanz | ⏳ offen |
+| M7 | Eigenes Mitgliederregister + CSV-Import (löst das Nextcloud-Adressbuch als Datenquelle ab) | 🚧 gerade in Arbeit |
 
-„Verifiziert" heißt: Ende-zu-Ende live gegen eine echte Nextcloud-34-Testinstanz getestet (Mailversand, Idempotenz, Gruppen-Delegation, Dashboard-API) — siehe [docs/plan.md](docs/plan.md) für die Details.
+„Verifiziert" heißt: Ende-zu-Ende live gegen eine echte Nextcloud-34-Testinstanz getestet — siehe [docs/plan.md](docs/plan.md) für die Details und den Architektur-Wechsel weg vom Adressbuch.
 
 ## Voraussetzungen
 
 - Nextcloud ≥ 28 (getestet gegen 34.0.1)
-- Apps `contacts` und `dav` aktiviert
-- Ein gemeinsames Adressbuch mit den Vereinsmitgliedern (Geburtsdatum + E-Mail-Adresse je Kontakt)
 - SSH-Zugriff (für `occ`-Befehle bei Installation/Konfiguration)
 
 ## Installation
@@ -44,13 +45,12 @@ Die App registriert sich automatisch im vorhandenen Nextcloud-Cron (`cron.php`) 
 
 ## Einrichtung
 
-1. **Einstellungen → Verwaltung → Geburtstagserinnerung** öffnen (als Nextcloud-Admin)
-2. Adressbuch auswählen (Besitzer-Benutzername eingeben → laden → Adressbuch wählen → speichern)
-3. Empfänger anlegen: Nextcloud-Nutzer, Gruppe oder feste E-Mail-Adresse, mit eigenen Vorlaufzeiten
-4. Optional: runde Geburtstage mit Geschenkvorschlag hinterlegen
-5. Optional: Text der Glückwunsch-Mail anpassen (Platzhalter `{name}`, `{vorname}`, `{alter}`, `{datum}`)
+1. **Mitgliederregister** (eigenes Icon oben in der Nextcloud-Menüleiste) öffnen und Mitglieder erfassen — manuell oder per CSV-Import (siehe unten)
+2. **Einstellungen → Verwaltung → Geburtstagserinnerung** öffnen (als Nextcloud-Admin): Empfänger anlegen (Nextcloud-Nutzer, Gruppe oder feste E-Mail-Adresse) mit eigenen Vorlaufzeiten
+3. Optional: runde Geburtstage mit Geschenkvorschlag hinterlegen
+4. Optional: Text der Glückwunsch-Mail anpassen (Platzhalter `{name}`, `{vorname}`, `{alter}`, `{datum}`)
 
-Damit auch Nicht-Systemadmins (z.B. der Vorstand) Zugriff auf die Admin-Einstellungsseite bekommen, ohne volle Nextcloud-Admins zu sein:
+Damit auch Nicht-Systemadmins (z.B. der Vorstand) Zugriff auf Mitgliederregister und Admin-Einstellungsseite bekommen, ohne volle Nextcloud-Admins zu sein:
 
 ```bash
 php occ admin-delegation:add "OCA\BirthdayReminder\Settings\AdminSettings" <gruppen-id>
@@ -58,11 +58,24 @@ php occ admin-delegation:add "OCA\BirthdayReminder\Settings\AdminSettings" <grup
 
 Jeder Nextcloud-Nutzer kann außerdem unter **Einstellungen → Geburtstagserinnerung** selbst festlegen, zu welchen Vorlaufzeiten (bzw. nur bei runden Geburtstagen) er erinnert werden möchte.
 
+### CSV-Import
+
+Auf der Mitgliederseite: CSV-Datei auswählen, Spalten den Feldern **Vorname**, **Nachname**, **Geburtsdatum** (Pflicht) und **E-Mail** (optional) zuordnen, dann importieren. Eine Beispieldatei liegt unter [docs/beispiel-mitglieder-import.csv](docs/beispiel-mitglieder-import.csv) (Semikolon-getrennt, Geburtsdatum als `TT.MM.JJJJ`; `TT.MM.` ohne Punkt am Ende geht auch, wenn kein Jahr bekannt ist).
+
+Abgleich-Logik pro Import (Namensvergleich Vorname+Nachname, ohne Berücksichtigung von Groß-/Kleinschreibung):
+
+- **neuer Name** → Mitglied wird angelegt
+- **bekannter Name, Daten geändert** → Mitglied wird aktualisiert
+- **bekannter Name, keine Änderung** → nichts passiert
+- **bekannter Name fehlt in der CSV** → Mitglied wird deaktiviert, Bemerkung „Deaktiviert da bei Import nicht mehr vorhanden" wird ergänzt
+
+Ein bereits deaktiviertes Mitglied wird **nicht automatisch wieder aktiviert**, nur weil es wieder in der CSV auftaucht — das bleibt bewusst eine manuelle Entscheidung auf der Mitgliederseite.
+
 ## Entwicklung
 
 ```bash
 composer install     # PHPUnit für die lokalen Tests
-vendor/bin/phpunit    # reine Terminlogik (Schaltjahre, Jahreswechsel, BDAY-Parsing) - läuft ohne Nextcloud-Runtime
+vendor/bin/phpunit    # reine Logik (Terminberechnung, CSV-/Datums-Parsing, Import-Abgleich) - läuft ohne Nextcloud-Runtime
 ```
 
 Es gibt keinen Frontend-Build-Schritt: `js/` und `css/` sind handgeschriebenes Vanilla JS/CSS, direkt einsatzbereit (bewusste Abweichung vom ursprünglichen Plan, der Vue/Webpack vorsah — siehe [docs/plan.md](docs/plan.md)).
@@ -76,22 +89,23 @@ appinfo/          info.xml, routes.php
 lib/
   AppInfo/        Application.php (DI, Dashboard-Widget-Registrierung)
   BackgroundJob/  DailyReminderJob.php (täglicher Lauf)
-  Contacts/       ContactsGateway.php (liest Adressbuch via CardDavBackend, parst BDAY)
-  Model/          Member.php
-  Db/             Recipient/Offset/Milestone/ReminderLog + zugehörige Mapper
+  Model/          Member.php (Wertobjekt für die Terminlogik)
+  Db/             Member (Mitgliederregister) + Recipient/Offset/Milestone/ReminderLog + Mapper
   Service/        ReminderCalculator (reine Terminlogik), ReminderService (Orchestrierung),
-                  MailService, RecipientResolver, MailTemplateRenderer, ConfigService
-  Controller/      AdminApiController, PersonalApiController
+                  MailService, RecipientResolver, MailTemplateRenderer, ConfigService,
+                  CsvParser/MemberSyncPlanner (reine CSV-Import-Logik), CsvImportService (Orchestrierung)
+  Controller/      PageController (Mitgliederseite), MembersApiController, AdminApiController, PersonalApiController
   Settings/        AdminSection/AdminSettings (IDelegatedSettings), PersonalSection/PersonalSettings
   Dashboard/       BirthdayWidget.php (IAPIWidgetV2)
-  Migration/       Datenbank-Schema (4 Tabellen)
+  Migration/       Datenbank-Schema (5 Tabellen)
   Command/         occ-Befehle für Debug/Verwaltung
-js/, css/, templates/   Vanilla-JS-Einstellungsseiten (kein Build-Schritt)
-tests/Unit/             PHPUnit-Tests für die reine Terminlogik
-docs/plan.md            ursprünglicher Architektur-/Umsetzungsplan
+js/, css/, templates/   Vanilla-JS-Seiten (Mitgliederregister, Einstellungen) - kein Build-Schritt
+tests/Unit/             PHPUnit-Tests für die reine Logik
+docs/plan.md            Architektur-/Umsetzungsplan inkl. Architektur-Wechsel weg vom Adressbuch
+docs/beispiel-mitglieder-import.csv   Beispieldatei für den CSV-Import
 ```
 
-Details zu Datenmodell, Terminberechnung, Idempotenz und Entscheidungsgründen: siehe [docs/plan.md](docs/plan.md).
+Details zu Datenmodell, Terminberechnung, Idempotenz, CSV-Import-Logik und Entscheidungsgründen: siehe [docs/plan.md](docs/plan.md).
 
 ## Lizenz
 

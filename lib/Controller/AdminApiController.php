@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace OCA\BirthdayReminder\Controller;
 
-use OCA\BirthdayReminder\Contacts\ContactsGateway;
 use OCA\BirthdayReminder\Db\Milestone;
 use OCA\BirthdayReminder\Db\MilestoneMapper;
 use OCA\BirthdayReminder\Db\OffsetMapper;
@@ -22,38 +21,12 @@ class AdminApiController extends Controller {
     public function __construct(
         string $appName,
         IRequest $request,
-        private ContactsGateway $contactsGateway,
         private RecipientMapper $recipientMapper,
         private OffsetMapper $offsetMapper,
         private MilestoneMapper $milestoneMapper,
         private ConfigService $configService,
     ) {
         parent::__construct($appName, $request);
-    }
-
-    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
-    public function getAddressBooks(string $owner = ''): JSONResponse {
-        $currentOwner = $this->configService->getAddressBookOwner();
-        $currentId = $this->configService->getAddressBookId();
-
-        $lookupOwner = $owner !== '' ? $owner : $currentOwner;
-        $books = [];
-        if ($lookupOwner !== null && $lookupOwner !== '') {
-            $books = array_values($this->contactsGateway->getAddressBooksForOwner($lookupOwner));
-        }
-
-        return new JSONResponse([
-            'books' => $books,
-            'currentOwner' => $currentOwner,
-            'currentId' => $currentId,
-        ]);
-    }
-
-    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
-    public function saveAddressBook(string $owner, int $addressBookId): JSONResponse {
-        $this->configService->setAddressBookOwner($owner);
-        $this->configService->setAddressBookId($addressBookId);
-        return new JSONResponse(['ok' => true]);
     }
 
     #[AuthorizedAdminSetting(settings: AdminSettings::class)]

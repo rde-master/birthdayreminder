@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace OCA\BirthdayReminder\Service;
 
 use DateTimeImmutable;
-use OCA\BirthdayReminder\Contacts\ContactsGateway;
+use OCA\BirthdayReminder\Db\Member as MemberEntity;
+use OCA\BirthdayReminder\Db\MemberMapper;
 use OCA\BirthdayReminder\Db\MilestoneMapper;
 use OCA\BirthdayReminder\Db\OffsetMapper;
 use OCA\BirthdayReminder\Db\Recipient;
@@ -16,12 +17,12 @@ use OCA\BirthdayReminder\Model\Member;
 use Psr\Log\LoggerInterface;
 
 /**
- * Orchestrates one daily run: read contacts, compute matches, resolve
+ * Orchestrates one daily run: read active members, compute matches, resolve
  * recipients, send mail, log for idempotency.
  */
 final class ReminderService {
     public function __construct(
-        private ContactsGateway $contactsGateway,
+        private MemberMapper $memberMapper,
         private ReminderCalculator $calculator,
         private RecipientMapper $recipientMapper,
         private OffsetMapper $offsetMapper,
@@ -37,19 +38,14 @@ final class ReminderService {
 
     /**
      * Upcoming birthdays sorted by proximity, for the Dashboard widget.
-     * Shares the same contact-reading and date logic as run() so the widget
+     * Shares the same member-reading and date logic as run() so the widget
      * can never drift out of sync with what the daily job actually matches.
      *
      * @return array<int, array{member: Member, daysUntil: int, targetDate: DateTimeImmutable, age: ?int}>
      */
     public function getUpcomingBirthdays(int $limit = 7): array {
-        $addressBookId = $this->configService->getAddressBookId();
-        if ($addressBookId === null) {
-            return [];
-        }
-
         $today = new DateTimeImmutable('today');
-        $members = $this->contactsGateway->getMembers($addressBookId);
+        $members = $this->activeMembers();
 
         $upcoming = array_map(
             fn (Member $member) => array_merge(['member' => $member], $this->calculator->daysUntilNextBirthday($member, $today)),
@@ -62,14 +58,8 @@ final class ReminderService {
     }
 
     public function run(?DateTimeImmutable $today = null): void {
-        $addressBookId = $this->configService->getAddressBookId();
-        if ($addressBookId === null) {
-            $this->logger->warning('birthdayreminder: no address book configured, skipping run');
-            return;
-        }
-
         $today ??= new DateTimeImmutable('today');
-        $members = $this->contactsGateway->getMembers($addressBookId);
+        $members = $this->activeMembers();
         $recipients = $this->recipientMapper->findAll();
         $milestoneAges = $this->milestoneMapper->findAllAges();
 
@@ -179,7 +169,7 @@ final class ReminderService {
 
             $placeholders = [
                 'name' => $member->displayName,
-                'vorname' => $this->firstName($member->displayName),
+                'vorname' => $member->greetingName(),
                 'alter' => $match['age'] !== null ? (string)$match['age'] : '',
                 'datum' => $match['targetDate']->format('d.m.Y'),
             ];
@@ -196,8 +186,22 @@ final class ReminderService {
         }
     }
 
-    private function firstName(string $displayName): string {
-        $parts = preg_split('/\s+/', trim($displayName));
-        return $parts[0] !== '' ? $parts[0] : $displayName;
+    /**
+     * @return Member[]
+     */
+    private function activeMembers(): array {
+        return array_map(self::toModelMember(...), $this->memberMapper->findAllActive());
+    }
+
+    private static function toModelMember(MemberEntity $entity): Member {
+        return new Member(
+            uid: (string)$entity->getId(),
+            displayName: $entity->getDisplayName(),
+            email: $entity->getEmail(),
+            month: $entity->getBirthMonth(),
+            day: $entity->getBirthDay(),
+            year: $entity->getBirthYear(),
+            firstName: $entity->getFirstName(),
+        );
     }
 }

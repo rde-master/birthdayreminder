@@ -3,9 +3,9 @@
       xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
     <id>birthdayreminder</id>
     <name>Geburtstagserinnerung</name>
-    <summary>Erinnerungs- und Glückwunsch-Mails zu Geburtstagen von Vereinsmitgliedern aus einem Nextcloud-Adressbuch.</summary>
-    <description><![CDATA[Liest die Geburtstage von Vereinsmitgliedern aus einem gemeinsamen Nextcloud-Adressbuch und verschickt zu frei konfigurierbaren Vorlaufzeiten Erinnerungs-Mails an Verantwortliche sowie eine Glückwunsch-Mail an das Mitglied selbst. Zeigt außerdem die nächsten anstehenden Geburtstage als Dashboard-Widget.]]></description>
-    <version>0.3.0</version>
+    <summary>Erinnerungs- und Glückwunsch-Mails zu Geburtstagen von Vereinsmitgliedern, verwaltet in einem eigenen Mitgliederregister mit CSV-Import.</summary>
+    <description><![CDATA[Eigenes Mitgliederregister (Vorname, Nachname, Geburtsdatum, E-Mail, Deaktiviert-Schalter) mit CSV-Import, der neue Mitglieder anlegt, geänderte aktualisiert und beim Import fehlende automatisch deaktiviert. Verschickt zu frei konfigurierbaren Vorlaufzeiten Erinnerungs-Mails an Verantwortliche sowie eine Glückwunsch-Mail an das Mitglied selbst. Zeigt außerdem die nächsten anstehenden Geburtstage als Dashboard-Widget.]]></description>
+    <version>0.4.0</version>
     <licence>agpl</licence>
     <author>Verein</author>
     <namespace>BirthdayReminder</namespace>
@@ -17,6 +17,13 @@
     <background-jobs>
         <job>OCA\BirthdayReminder\BackgroundJob\DailyReminderJob</job>
     </background-jobs>
+    <navigations>
+        <navigation>
+            <name>Geburtstagserinnerung</name>
+            <route>birthdayreminder.page.index</route>
+            <order>50</order>
+        </navigation>
+    </navigations>
     <commands>
         <command>OCA\BirthdayReminder\Command\DebugUpcoming</command>
         <command>OCA\BirthdayReminder\Command\AddRecipient</command>

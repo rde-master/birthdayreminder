@@ -125,83 +125,6 @@
 		return select;
 	}
 
-	// ---- Address book -------------------------------------------------
-
-	function renderAddressBook(root) {
-		var wrap = section(t('Adressbuch'));
-		wrap.appendChild(el('p', {
-			text: t('Aus diesem Adressbuch werden die Vereinsmitglieder samt Geburtsdatum und E-Mail-Adresse gelesen. In der Regel ist das ein gemeinsam genutztes Adressbuch, das einem bestimmten Nextcloud-Konto gehört.'),
-		}));
-
-		var ownerInput = el('input', { type: 'text', placeholder: t('z.B. daniel') });
-		var loadButton = el('button', { type: 'button', class: 'button', text: t('Adressbücher laden') });
-		var select = el('select');
-		select.appendChild(el('option', { value: '', text: t('- bitte zuerst laden -') }));
-		var saveButton = el('button', { type: 'button', class: 'button primary', text: t('Speichern') });
-		var status = el('span', { class: 'birthdayreminder-status' });
-
-		function fillBooks(books, currentId) {
-			select.innerHTML = '';
-			if (books.length === 0) {
-				select.appendChild(el('option', { value: '', text: t('- bitte zuerst laden -') }));
-			}
-			books.forEach(function (book) {
-				var opt = el('option', { value: String(book.id), text: book.displayName + ' (' + book.uri + ')' });
-				if (currentId !== null && Number(book.id) === Number(currentId)) {
-					opt.selected = true;
-				}
-				select.appendChild(opt);
-			});
-		}
-
-		api('GET', '/admin/addressbooks').then(function (data) {
-			if (data.currentOwner) {
-				ownerInput.value = data.currentOwner;
-			}
-			fillBooks(data.books, data.currentId);
-			if (data.books.length === 0 && data.currentOwner) {
-				status.textContent = t('Kein Adressbuch geladen - "Adressbücher laden" klicken.');
-			}
-		}).catch(showError);
-
-		loadButton.addEventListener('click', function () {
-			var owner = ownerInput.value.trim();
-			if (!owner) {
-				return;
-			}
-			status.textContent = t('Lade …');
-			api('GET', '/admin/addressbooks?owner=' + encodeURIComponent(owner)).then(function (data) {
-				fillBooks(data.books, null);
-				status.textContent = data.books.length + ' ' + t('Adressbuch/-bücher gefunden.');
-			}).catch(function (err) {
-				status.textContent = String(err.message || err);
-			});
-		});
-
-		saveButton.addEventListener('click', function () {
-			var owner = ownerInput.value.trim();
-			var id = Number(select.value);
-			if (!owner || !id) {
-				status.textContent = t('Bitte Besitzer eingeben und Adressbuch auswählen.');
-				return;
-			}
-			api('POST', '/admin/addressbook', { owner: owner, addressBookId: id }).then(function () {
-				status.textContent = t('Gespeichert.');
-			}).catch(function (err) {
-				status.textContent = String(err.message || err);
-			});
-		});
-
-		wrap.appendChild(el('label', { class: 'birthdayreminder-field-label', text: t('Besitzer des Adressbuchs') }));
-		wrap.appendChild(el('p', { class: 'birthdayreminder-hint', text: t('Nextcloud-Benutzername des Kontos, dem das Adressbuch gehört. Nach der Eingabe auf "Adressbücher laden" klicken, um seine Adressbücher unten zur Auswahl anzuzeigen.') }));
-		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [ownerInput, loadButton]));
-
-		wrap.appendChild(el('label', { class: 'birthdayreminder-field-label', text: t('Zu verwendendes Adressbuch') }));
-		wrap.appendChild(el('p', { class: 'birthdayreminder-hint', text: t('Welches der oben geladenen Adressbücher die Vereinsmitglieder enthält. Mit "Speichern" wird es als Quelle für alle Erinnerungen festgelegt.') }));
-		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [select, saveButton, status]));
-		root.appendChild(wrap);
-	}
-
 	// ---- Recipients -----------------------------------------------------
 
 	var RECIPIENT_TYPE_LABELS = {
@@ -423,12 +346,22 @@
 		return (window.t && window.OC) ? OC.L10N.translate('birthdayreminder', text) : text;
 	}
 
+	function renderMembersLink(root) {
+		var wrap = section(t('Mitgliederregister'));
+		wrap.appendChild(el('p', {
+			text: t('Die Vereinsmitglieder (Vorname, Nachname, Geburtsdatum, E-Mail) werden auf der eigenen Mitgliederseite gepflegt - dort auch der CSV-Import.'),
+		}));
+		var link = el('a', { class: 'button primary', href: OC.generateUrl('/apps/birthdayreminder/'), text: t('Zur Mitgliederseite') });
+		wrap.appendChild(link);
+		root.appendChild(wrap);
+	}
+
 	document.addEventListener('DOMContentLoaded', function () {
 		var root = document.getElementById('birthdayreminder-admin-settings');
 		if (!root) {
 			return;
 		}
-		renderAddressBook(root);
+		renderMembersLink(root);
 		renderRecipients(root);
 		renderMilestones(root);
 		renderCongratsTemplate(root);

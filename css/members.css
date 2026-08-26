@@ -1,0 +1,13 @@
+#birthdayreminder-members-page {
+	max-width: 100%;
+	padding: 1.5em;
+	box-sizing: border-box;
+}
+
+.birthdayreminder-row-disabled {
+	opacity: 0.55;
+}
+
+.birthdayreminder-row-disabled input:not([type="checkbox"]) {
+	text-decoration: line-through;
+}

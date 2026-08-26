@@ -5,23 +5,24 @@ declare(strict_types=1);
 namespace OCA\BirthdayReminder\Command;
 
 use DateTimeImmutable;
-use OCA\BirthdayReminder\Contacts\ContactsGateway;
+use OCA\BirthdayReminder\Db\Member as MemberEntity;
+use OCA\BirthdayReminder\Db\MemberMapper;
+use OCA\BirthdayReminder\Model\Member;
 use OCA\BirthdayReminder\Service\ReminderCalculator;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Debug-only console command for M1: dumps upcoming birthday matches without
- * touching the database or sending mail. Not wired into the daily job.
+ * Debug-only console command: dumps upcoming birthday matches for the
+ * app's own member registry without sending mail.
  *
- * Usage: occ birthdayreminder:debug-upcoming <addressbook-owner> [--book-id=N] [--offsets=30,14,2,1,0]
+ * Usage: occ birthdayreminder:debug-upcoming [--offsets=30,14,2,1,0]
  */
 class DebugUpcoming extends Command {
     public function __construct(
-        private ContactsGateway $contactsGateway,
+        private MemberMapper $memberMapper,
         private ReminderCalculator $calculator,
     ) {
         parent::__construct();
@@ -29,39 +30,24 @@ class DebugUpcoming extends Command {
 
     protected function configure(): void {
         $this->setName('birthdayreminder:debug-upcoming')
-            ->setDescription('Print upcoming birthday matches for a given address book (no DB, no mail)')
-            ->addArgument('owner', InputArgument::REQUIRED, 'Nextcloud user id owning the address book')
-            ->addOption('book-id', null, InputOption::VALUE_REQUIRED, 'Address book id (default: first book found for owner)')
+            ->setDescription('Print upcoming birthday matches for the active member registry (no mail sent)')
             ->addOption('offsets', null, InputOption::VALUE_REQUIRED, 'Comma-separated days-before values', '30,14,2,1,0');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int {
-        $owner = $input->getArgument('owner');
-        $books = $this->contactsGateway->getAddressBooksForOwner($owner);
-
-        if (empty($books)) {
-            $output->writeln("<error>No address books found for user '{$owner}'.</error>");
-            return 1;
-        }
-
-        $bookIdOption = $input->getOption('book-id');
-        $bookId = $bookIdOption !== null ? (int)$bookIdOption : (int)array_key_first($books);
-
-        if (!isset($books[$bookId])) {
-            $output->writeln("<error>Address book id {$bookId} not found for user '{$owner}'.</error>");
-            $this->listBooks($books, $output);
-            return 1;
-        }
-
-        $output->writeln(sprintf(
-            'Using address book "%s" (id %d) owned by %s',
-            $books[$bookId]['displayName'],
-            $bookId,
-            $owner
-        ));
-
-        $members = $this->contactsGateway->getMembers($bookId);
-        $output->writeln(sprintf('%d contact(s) with a parseable BDAY found.', count($members)));
+        $members = array_map(
+            static fn (MemberEntity $entity) => new Member(
+                uid: (string)$entity->getId(),
+                displayName: $entity->getDisplayName(),
+                email: $entity->getEmail(),
+                month: $entity->getBirthMonth(),
+                day: $entity->getBirthDay(),
+                year: $entity->getBirthYear(),
+                firstName: $entity->getFirstName(),
+            ),
+            $this->memberMapper->findAllActive()
+        );
+        $output->writeln(sprintf('%d aktive(s) Mitglied(er) in der Registry.', count($members)));
 
         $offsets = array_map('intval', explode(',', (string)$input->getOption('offsets')));
         $today = new DateTimeImmutable('today');
@@ -88,15 +74,5 @@ class DebugUpcoming extends Command {
         }
 
         return 0;
-    }
-
-    /**
-     * @param array<int, array{id: int, uri: string, displayName: string}> $books
-     */
-    private function listBooks(array $books, OutputInterface $output): void {
-        $output->writeln('Available address books:');
-        foreach ($books as $book) {
-            $output->writeln(sprintf('  id=%d  %s (%s)', $book['id'], $book['displayName'], $book['uri']));
-        }
     }
 }
