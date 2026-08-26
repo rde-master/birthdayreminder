@@ -10,6 +10,13 @@ use OCP\Mail\IMailer;
 /**
  * Sends both kinds of mail via Nextcloud's own configured mail transport
  * (OCP\Mail\IMailer) - no separate SMTP credentials needed.
+ *
+ * Deliberately plain-text only, without OCP\Mail\IEMailTemplate: that
+ * template builds a branded HTML card (logo banner, footer, nested table
+ * layout for email-client compatibility) that leaves visible chrome/blank
+ * space behind even with the header/footer calls skipped. A simple text
+ * mail sidesteps all of that and is all a club notification needs anyway -
+ * it also preserves line breaks from the admin's template text for free.
  */
 final class MailService {
     public function __construct(
@@ -26,49 +33,26 @@ final class MailService {
     public function sendReminder(string $toEmail, Member $member, int $daysBefore, ?string $giftText): bool {
         $subject = $this->reminderSubject($member, $daysBefore);
 
-        $template = $this->mailer->createEMailTemplate('birthdayreminder.reminder', [
-            'name' => $member->displayName,
-            'daysBefore' => $daysBefore,
-        ]);
-        // useTemplate() below pulls the actual mail Subject header from the
-        // template's own renderSubject(), not from Message::setSubject() -
-        // without this line the mail goes out with an empty subject.
-        $template->setSubject($subject);
-        // No addHeader() on purpose: it renders a large colored banner with
-        // the (theming) logo, which is more than this simple club mail needs.
-        $template->addHeading($subject);
-        $template->addBodyText($this->reminderBody($member, $daysBefore));
+        $body = $this->reminderBody($member, $daysBefore);
         if ($giftText !== null) {
-            $template->addBodyText('🎉 Runder Geburtstag! Geschenkvorschlag: ' . $giftText);
+            $body .= "\n\n🎉 Runder Geburtstag! Geschenkvorschlag: " . $giftText;
         }
-        // No addFooter() on purpose: drops the "Nextcloud - ..." branding line.
 
-        $message = $this->mailer->createMessage();
-        $message->setTo([$toEmail]);
-        $message->useTemplate($template);
-        $failedRecipients = $this->mailer->send($message);
-        return empty($failedRecipients);
+        return $this->send($toEmail, $subject, $body);
     }
 
     /**
      * @return bool true if the mail was handed off without a failed recipient.
      */
     public function sendCongratulation(string $toEmail, string $subject, string $body): bool {
-        $template = $this->mailer->createEMailTemplate('birthdayreminder.congrats', []);
-        $template->setSubject($subject);
-        // No addHeader() on purpose: it renders a large colored banner with
-        // the (theming) logo, which is more than this simple club mail needs.
-        $template->addHeading($subject);
-        // addBodyText() HTML-escapes $body and drops it into a plain <p>,
-        // where literal "\n" line breaks from the admin's template text are
-        // just collapsed whitespace - pass an explicit HTML variant with
-        // "\n" turned into <br> so the paragraph breaks actually show up.
-        $template->addBodyText(nl2br(htmlspecialchars($body)), $body);
-        // No addFooter() on purpose: drops the "Nextcloud - ..." branding line.
+        return $this->send($toEmail, $subject, $body);
+    }
 
+    private function send(string $toEmail, string $subject, string $body): bool {
         $message = $this->mailer->createMessage();
         $message->setTo([$toEmail]);
-        $message->useTemplate($template);
+        $message->setSubject($subject);
+        $message->setPlainBody($body);
         $failedRecipients = $this->mailer->send($message);
         return empty($failedRecipients);
     }
