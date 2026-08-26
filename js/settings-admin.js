@@ -342,6 +342,81 @@
 		root.appendChild(wrap);
 	}
 
+	// ---- Schedule & manual sending -------------------------------------
+
+	function renderSchedule(root) {
+		var wrap = section(t('Zeitplan & manueller Versand'));
+		wrap.appendChild(el('p', {
+			text: t('Zu welcher Uhrzeit die tägliche Prüfung laufen soll (ob heute Erinnerungen oder Glückwünsche fällig sind). Die Prüfung selbst läuft über Nextclouds eigenen Cron und kann sich dadurch um bis zu einer Stunde verzögern.'),
+		}));
+
+		var timeInput = el('input', { type: 'time' });
+		var saveButton = el('button', { type: 'button', class: 'button primary', text: t('Speichern') });
+		var scheduleStatus = el('span', { class: 'birthdayreminder-status' });
+
+		function loadSchedule() {
+			api('GET', '/admin/schedule').then(function (data) {
+				timeInput.value = data.dailyRunTime;
+				scheduleStatus.textContent = data.lastRunDate
+					? t('Letzter automatischer Lauf: ') + data.lastRunDate
+					: t('Bisher noch kein automatischer Lauf erfolgt.');
+			}).catch(showError);
+		}
+
+		saveButton.addEventListener('click', function () {
+			if (!timeInput.value) {
+				return;
+			}
+			api('POST', '/admin/schedule', { dailyRunTime: timeInput.value }).then(function () {
+				scheduleStatus.textContent = t('Gespeichert.');
+			}).catch(function (err) {
+				scheduleStatus.textContent = String(err.message || err);
+			});
+		});
+
+		loadSchedule();
+
+		wrap.appendChild(el('label', { class: 'birthdayreminder-field-label', text: t('Tägliche Prüfzeit') }));
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [timeInput, saveButton]));
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [scheduleStatus]));
+
+		wrap.appendChild(el('label', { class: 'birthdayreminder-field-label', text: t('Manuell auslösen') }));
+		wrap.appendChild(el('p', { class: 'birthdayreminder-hint', text: t('Verschickt sofort, was heute laut Vorlaufzeiten/Geburtstagen fällig ist - unabhängig von der oben eingestellten Uhrzeit. Bereits heute verschickte Mails werden dabei nicht doppelt versendet.') }));
+
+		var remindersButton = el('button', { type: 'button', class: 'button', text: t('Erinnerungen jetzt versenden') });
+		var remindersStatus = el('span', { class: 'birthdayreminder-status' });
+		remindersButton.addEventListener('click', function () {
+			if (!window.confirm(t('Jetzt alle heute fälligen Erinnerungs-Mails an die Verantwortlichen versenden?'))) {
+				return;
+			}
+			remindersStatus.textContent = t('Wird versendet …');
+			api('POST', '/admin/trigger-reminders', {}).then(function () {
+				remindersStatus.textContent = t('Erledigt.');
+			}).catch(function (err) {
+				remindersStatus.textContent = String(err.message || err);
+			});
+		});
+
+		var congratsButton = el('button', { type: 'button', class: 'button', text: t('Glückwünsche jetzt versenden') });
+		var congratsStatus = el('span', { class: 'birthdayreminder-status' });
+		congratsButton.addEventListener('click', function () {
+			if (!window.confirm(t('Jetzt alle heute fälligen Glückwunsch-Mails an Mitglieder versenden?'))) {
+				return;
+			}
+			congratsStatus.textContent = t('Wird versendet …');
+			api('POST', '/admin/trigger-congrats', {}).then(function () {
+				congratsStatus.textContent = t('Erledigt.');
+			}).catch(function (err) {
+				congratsStatus.textContent = String(err.message || err);
+			});
+		});
+
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [remindersButton, remindersStatus]));
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [congratsButton, congratsStatus]));
+
+		root.appendChild(wrap);
+	}
+
 	function t(text) {
 		return (window.t && window.OC) ? OC.L10N.translate('birthdayreminder', text) : text;
 	}
@@ -365,5 +440,6 @@
 		renderRecipients(root);
 		renderMilestones(root);
 		renderCongratsTemplate(root);
+		renderSchedule(root);
 	});
 })();

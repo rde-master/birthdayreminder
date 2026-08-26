@@ -49,6 +49,7 @@ Die App registriert sich automatisch im vorhandenen Nextcloud-Cron (`cron.php`) 
 2. **Einstellungen → Verwaltung → Geburtstagserinnerung** öffnen (als Nextcloud-Admin): Empfänger anlegen (Nextcloud-Nutzer, Gruppe oder feste E-Mail-Adresse) mit eigenen Vorlaufzeiten
 3. Optional: runde Geburtstage mit Geschenkvorschlag hinterlegen
 4. Optional: Text der Glückwunsch-Mail anpassen (Platzhalter `{name}`, `{vorname}`, `{alter}`, `{datum}`)
+5. Im Bereich „Zeitplan & manueller Versand": Uhrzeit für die tägliche Prüfung einstellen (Standard 08:00). Dort auch zwei Buttons, um Erinnerungen bzw. Glückwünsche sofort manuell auszulösen (respektiert dieselbe Versand-Historie wie der automatische Lauf, also keine doppelten Mails)
 
 Damit auch Nicht-Systemadmins (z.B. der Vorstand) Zugriff auf Mitgliederregister und Admin-Einstellungsseite bekommen, ohne volle Nextcloud-Admins zu sein:
 
@@ -93,7 +94,8 @@ lib/
   Db/             Member (Mitgliederregister) + Recipient/Offset/Milestone/ReminderLog + Mapper
   Service/        ReminderCalculator (reine Terminlogik), ReminderService (Orchestrierung),
                   MailService, RecipientResolver, MailTemplateRenderer, ConfigService,
-                  CsvParser/MemberSyncPlanner (reine CSV-Import-Logik), CsvImportService (Orchestrierung)
+                  CsvParser/MemberSyncPlanner (reine CSV-Import-Logik), CsvImportService (Orchestrierung),
+                  ScheduleGate (reine Logik: "ist die eingestellte Tageszeit erreicht?")
   Controller/      PageController (Mitgliederseite), MembersApiController, AdminApiController, PersonalApiController
   Settings/        AdminSection/AdminSettings (IDelegatedSettings), PersonalSection/PersonalSettings
   Dashboard/       BirthdayWidget.php (IAPIWidgetV2)

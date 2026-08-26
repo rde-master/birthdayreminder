@@ -10,12 +10,14 @@ use OCA\BirthdayReminder\Db\OffsetMapper;
 use OCA\BirthdayReminder\Db\Recipient;
 use OCA\BirthdayReminder\Db\RecipientMapper;
 use OCA\BirthdayReminder\Service\ConfigService;
+use OCA\BirthdayReminder\Service\ReminderService;
 use OCA\BirthdayReminder\Settings\AdminSettings;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http\Attribute\AuthorizedAdminSetting;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IRequest;
+use Psr\Log\LoggerInterface;
 
 class AdminApiController extends Controller {
     public function __construct(
@@ -25,6 +27,8 @@ class AdminApiController extends Controller {
         private OffsetMapper $offsetMapper,
         private MilestoneMapper $milestoneMapper,
         private ConfigService $configService,
+        private ReminderService $reminderService,
+        private LoggerInterface $logger,
     ) {
         parent::__construct($appName, $request);
     }
@@ -140,6 +144,37 @@ class AdminApiController extends Controller {
     public function saveCongratsTemplate(string $subject, string $body): JSONResponse {
         $this->configService->setCongratsSubjectTemplate($subject);
         $this->configService->setCongratsBodyTemplate($body);
+        return new JSONResponse(['ok' => true]);
+    }
+
+    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
+    public function getSchedule(): JSONResponse {
+        return new JSONResponse([
+            'dailyRunTime' => $this->configService->getDailyRunTime(),
+            'lastRunDate' => $this->configService->getLastRunDate(),
+        ]);
+    }
+
+    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
+    public function saveSchedule(string $dailyRunTime): JSONResponse {
+        if (preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $dailyRunTime) !== 1) {
+            return new JSONResponse(['error' => 'Ungültige Uhrzeit (Format HH:MM erwartet)'], 400);
+        }
+        $this->configService->setDailyRunTime($dailyRunTime);
+        return new JSONResponse(['ok' => true]);
+    }
+
+    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
+    public function triggerReminders(): JSONResponse {
+        $this->logger->info('birthdayreminder: manual trigger - reminders');
+        $this->reminderService->runReminders();
+        return new JSONResponse(['ok' => true]);
+    }
+
+    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
+    public function triggerCongrats(): JSONResponse {
+        $this->logger->info('birthdayreminder: manual trigger - congrats');
+        $this->reminderService->runCongrats();
         return new JSONResponse(['ok' => true]);
     }
 

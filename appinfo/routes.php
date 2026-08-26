@@ -22,6 +22,11 @@ return [
         ['name' => 'adminApi#getCongratsTemplate', 'url' => '/admin/congrats-template', 'verb' => 'GET'],
         ['name' => 'adminApi#saveCongratsTemplate', 'url' => '/admin/congrats-template', 'verb' => 'POST'],
 
+        ['name' => 'adminApi#getSchedule', 'url' => '/admin/schedule', 'verb' => 'GET'],
+        ['name' => 'adminApi#saveSchedule', 'url' => '/admin/schedule', 'verb' => 'POST'],
+        ['name' => 'adminApi#triggerReminders', 'url' => '/admin/trigger-reminders', 'verb' => 'POST'],
+        ['name' => 'adminApi#triggerCongrats', 'url' => '/admin/trigger-congrats', 'verb' => 'POST'],
+
         ['name' => 'personalApi#getSettings', 'url' => '/personal/settings', 'verb' => 'GET'],
         ['name' => 'personalApi#saveSettings', 'url' => '/personal/settings', 'verb' => 'POST'],
     ],

@@ -38,6 +38,7 @@ class AdminSettings implements IDelegatedSettings {
             Application::APP_ID => [
                 '/congrats_subject_template/',
                 '/congrats_body_template/',
+                '/daily_run_time/',
             ],
         ];
     }

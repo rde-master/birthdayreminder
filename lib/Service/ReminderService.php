@@ -57,8 +57,55 @@ final class ReminderService {
         return array_slice($upcoming, 0, $limit);
     }
 
+    /**
+     * Full daily pass: reminders to recipients + congrats to the members
+     * themselves. Used by the scheduled background job.
+     */
     public function run(?DateTimeImmutable $today = null): void {
         $today ??= new DateTimeImmutable('today');
+        $this->runReminders($today);
+        $this->runCongrats($today);
+    }
+
+    /**
+     * Only the reminder mails to recipients - used by the "jetzt versenden"
+     * button in the admin UI, and internally by run(). Shares the exact
+     * same idempotency log as the scheduled job, so a manual trigger never
+     * causes a duplicate send later that day (or vice versa).
+     */
+    public function runReminders(?DateTimeImmutable $today = null): void {
+        $today ??= new DateTimeImmutable('today');
+        $context = $this->buildContext($today);
+
+        foreach ($context['recipients'] as $recipient) {
+            $this->sendRemindersForRecipient(
+                $recipient,
+                $context['offsetsByRecipient'][$recipient->getId()] ?? [],
+                $context['matchesByOffset'],
+                $context['milestoneAges']
+            );
+        }
+    }
+
+    /**
+     * Only the congratulation mails to today's members - used by the "jetzt
+     * versenden" button in the admin UI, and internally by run().
+     */
+    public function runCongrats(?DateTimeImmutable $today = null): void {
+        $today ??= new DateTimeImmutable('today');
+        $context = $this->buildContext($today);
+        $this->sendCongratulations($context['matchesByOffset'][0] ?? []);
+    }
+
+    /**
+     * @return array{
+     *     recipients: Recipient[],
+     *     offsetsByRecipient: array<int, int[]>,
+     *     matchesByOffset: array<int, array<int, array{member: Member, daysBefore: int, targetDate: DateTimeImmutable, age: ?int}>>,
+     *     milestoneAges: int[],
+     * }
+     */
+    private function buildContext(DateTimeImmutable $today): array {
         $members = $this->activeMembers();
         $recipients = $this->recipientMapper->findAll();
         $milestoneAges = $this->milestoneMapper->findAllAges();
@@ -82,16 +129,12 @@ final class ReminderService {
             $matchesByOffset[$match['daysBefore']][] = $match;
         }
 
-        foreach ($recipients as $recipient) {
-            $this->sendRemindersForRecipient(
-                $recipient,
-                $offsetsByRecipient[$recipient->getId()] ?? [],
-                $matchesByOffset,
-                $milestoneAges
-            );
-        }
-
-        $this->sendCongratulations($matchesByOffset[0] ?? []);
+        return [
+            'recipients' => $recipients,
+            'offsetsByRecipient' => $offsetsByRecipient,
+            'matchesByOffset' => $matchesByOffset,
+            'milestoneAges' => $milestoneAges,
+        ];
     }
 
     /**
