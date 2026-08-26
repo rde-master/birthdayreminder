@@ -1,0 +1,13 @@
+{
+    "name": "verein/birthdayreminder",
+    "description": "Geburtstagserinnerung fuer Vereinsmitglieder",
+    "license": "AGPL-3.0-or-later",
+    "autoload": {
+        "psr-4": {
+            "OCA\\BirthdayReminder\\": "lib/"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9"
+    }
+}

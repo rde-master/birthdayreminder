@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>birthdayreminder</id>
+    <name>Geburtstagserinnerung</name>
+    <summary>Erinnerungs- und Glückwunsch-Mails zu Geburtstagen von Vereinsmitgliedern aus einem Nextcloud-Adressbuch.</summary>
+    <description><![CDATA[Liest die Geburtstage von Vereinsmitgliedern aus einem gemeinsamen Nextcloud-Adressbuch und verschickt zu frei konfigurierbaren Vorlaufzeiten Erinnerungs-Mails an Verantwortliche sowie eine Glückwunsch-Mail an das Mitglied selbst. Zeigt außerdem die nächsten anstehenden Geburtstage als Dashboard-Widget.]]></description>
+    <version>0.1.0</version>
+    <licence>agpl</licence>
+    <author>Verein</author>
+    <namespace>BirthdayReminder</namespace>
+    <category>organization</category>
+    <bugs>https://example.invalid/issues</bugs>
+    <dependencies>
+        <nextcloud min-version="28" max-version="31"/>
+    </dependencies>
+    <!--
+    M1 scope only: just the debug command. background-jobs, settings and the
+    dashboard widget are added in info.xml as M2/M4/M5 land, once their classes exist -
+    referencing a not-yet-implemented class here would break every request once
+    the app is enabled (Application::register runs eagerly on boot).
+    -->
+    <commands>
+        <command>OCA\BirthdayReminder\Command\DebugUpcoming</command>
+    </commands>
+</info>
