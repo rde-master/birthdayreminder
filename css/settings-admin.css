@@ -35,3 +35,44 @@
 	color: var(--color-text-maxcontrast, #767676);
 	margin-left: 0.5em;
 }
+
+.birthdayreminder-offset-editor {
+	min-width: 16em;
+}
+
+.birthdayreminder-offset-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.3em;
+	margin-bottom: 0.3em;
+}
+
+.birthdayreminder-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3em;
+	background: var(--color-background-dark, #ededed);
+	border-radius: var(--border-radius-pill, 16px);
+	padding: 0.15em 0.3em 0.15em 0.7em;
+	font-size: 0.9em;
+	white-space: nowrap;
+}
+
+.birthdayreminder-chip-remove {
+	border: none;
+	background: transparent;
+	cursor: pointer;
+	border-radius: 50%;
+	width: 1.4em;
+	height: 1.4em;
+	line-height: 1;
+	font-size: 1em;
+}
+
+.birthdayreminder-chip-remove:hover {
+	background: var(--color-background-darker, #dbdbdb);
+}
+
+.birthdayreminder-day-input {
+	width: 5em;
+}

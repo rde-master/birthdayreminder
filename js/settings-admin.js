@@ -56,6 +56,75 @@
 		console.error('[birthdayreminder]', err);
 	}
 
+	// ---- Reusable: offset ("Vorlauftage") chip editor ------------------
+
+	function createOffsetEditor(initialOffsets) {
+		var offsets = initialOffsets.slice().sort(function (a, b) { return a - b; });
+		var wrap = el('div', { class: 'birthdayreminder-offset-editor' });
+		var chips = el('div', { class: 'birthdayreminder-offset-chips' });
+		var dayInput = el('input', { type: 'number', min: '0', class: 'birthdayreminder-day-input', placeholder: t('Tage') });
+		var addBtn = el('button', { type: 'button', class: 'button', text: t('+ Tag hinzufügen') });
+
+		function label(days) {
+			return days === 0 ? t('am Tag selbst') : days + ' ' + t('Tage vorher');
+		}
+
+		function render() {
+			chips.innerHTML = '';
+			if (offsets.length === 0) {
+				chips.appendChild(el('span', { class: 'birthdayreminder-status', text: t('Keine Vorlaufzeiten eingetragen') }));
+			}
+			offsets.forEach(function (days) {
+				var removeBtn = el('button', { type: 'button', class: 'birthdayreminder-chip-remove', text: '×', title: t('Entfernen') });
+				removeBtn.addEventListener('click', function () {
+					offsets = offsets.filter(function (d) { return d !== days; });
+					render();
+				});
+				chips.appendChild(el('span', { class: 'birthdayreminder-chip' }, [
+					document.createTextNode(label(days)),
+					removeBtn,
+				]));
+			});
+		}
+
+		function addFromInput() {
+			var val = parseInt(dayInput.value, 10);
+			if (isNaN(val) || val < 0) {
+				return;
+			}
+			if (offsets.indexOf(val) === -1) {
+				offsets.push(val);
+				offsets.sort(function (a, b) { return a - b; });
+				render();
+			}
+			dayInput.value = '';
+		}
+
+		addBtn.addEventListener('click', addFromInput);
+		dayInput.addEventListener('keydown', function (ev) {
+			if (ev.key === 'Enter') {
+				ev.preventDefault();
+				addFromInput();
+			}
+		});
+
+		render();
+		wrap.appendChild(chips);
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [dayInput, addBtn]));
+
+		return { node: wrap, getOffsets: function () { return offsets.slice(); } };
+	}
+
+	// ---- Reusable: "alle Geburtstage" / "nur runde" dropdown -----------
+
+	function createMilestoneSelect(onlyMilestones) {
+		var select = el('select');
+		select.appendChild(el('option', { value: 'all', text: t('Alle Geburtstage') }));
+		select.appendChild(el('option', { value: 'milestones', text: t('Nur runde Geburtstage') }));
+		select.value = onlyMilestones ? 'milestones' : 'all';
+		return select;
+	}
+
 	// ---- Address book -------------------------------------------------
 
 	function renderAddressBook(root) {
@@ -134,13 +203,9 @@
 			typeSelect.appendChild(el('option', { value: o[0], text: o[1] }));
 		});
 		var valueInput = el('input', { type: 'text', placeholder: t('NC-Benutzer-ID / Gruppen-ID / E-Mail') });
-		var offsetsInput = el('input', { type: 'text', placeholder: t('Tage vorher, z.B. 30,14,2,1,0'), value: '30,14,2,1,0' });
-		var onlyMilestonesCheckbox = el('input', { type: 'checkbox', id: 'br-new-only-milestones' });
+		var newOffsetEditor = createOffsetEditor([30, 14, 2, 1, 0]);
+		var newMilestoneSelect = createMilestoneSelect(false);
 		var addButton = el('button', { class: 'button primary', text: t('Hinzufügen') });
-
-		function parseOffsets(str) {
-			return str.split(',').map(function (s) { return parseInt(s.trim(), 10); }).filter(function (n) { return !isNaN(n); });
-		}
 
 		function load() {
 			api('GET', '/admin/recipients').then(function (recipients) {
@@ -160,9 +225,8 @@
 			table.appendChild(head);
 
 			recipients.forEach(function (r) {
-				var offsetsField = el('input', { type: 'text', value: r.offsets.join(',') });
-				var milestoneCheckbox = el('input', { type: 'checkbox' });
-				milestoneCheckbox.checked = !!r.onlyMilestones;
+				var offsetEditor = createOffsetEditor(r.offsets);
+				var milestoneSelect = createMilestoneSelect(r.onlyMilestones);
 
 				var saveRowButton = el('button', { class: 'button', text: t('Speichern') });
 				saveRowButton.addEventListener('click', function () {
@@ -170,8 +234,8 @@
 						id: r.id,
 						type: r.type,
 						value: r.value,
-						onlyMilestones: milestoneCheckbox.checked,
-						offsets: parseOffsets(offsetsField.value),
+						onlyMilestones: milestoneSelect.value === 'milestones',
+						offsets: offsetEditor.getOffsets(),
 					}).then(load).catch(showError);
 				});
 
@@ -183,8 +247,8 @@
 				table.appendChild(el('tr', {}, [
 					el('td', { text: r.type }),
 					el('td', { text: r.value }),
-					el('td', {}, [offsetsField]),
-					el('td', {}, [milestoneCheckbox]),
+					el('td', {}, [offsetEditor.node]),
+					el('td', {}, [milestoneSelect]),
 					el('td', {}, [saveRowButton, deleteButton]),
 				]));
 			});
@@ -192,8 +256,8 @@
 			var newRow = el('tr', {}, [
 				el('td', {}, [typeSelect]),
 				el('td', {}, [valueInput]),
-				el('td', {}, [offsetsInput]),
-				el('td', {}, [onlyMilestonesCheckbox]),
+				el('td', {}, [newOffsetEditor.node]),
+				el('td', {}, [newMilestoneSelect]),
 				el('td', {}, [addButton]),
 			]);
 			table.appendChild(newRow);
@@ -208,8 +272,8 @@
 				id: null,
 				type: typeSelect.value,
 				value: value,
-				onlyMilestones: onlyMilestonesCheckbox.checked,
-				offsets: parseOffsets(offsetsInput.value),
+				onlyMilestones: newMilestoneSelect.value === 'milestones',
+				offsets: newOffsetEditor.getOffsets(),
 			}).then(function () {
 				valueInput.value = '';
 				load();
