@@ -1,18 +1,34 @@
 .birthdayreminder-section {
 	max-width: 900px;
+	margin-top: 2em;
 	margin-bottom: 2em;
+	padding: 1.5em 1.75em;
+	border: 1px solid var(--color-border, #dbdbdb);
+	border-radius: var(--border-radius-large, 12px);
+	background-color: var(--color-main-background, #fff);
+}
+
+.birthdayreminder-section:first-of-type {
+	margin-top: 1em;
 }
 
 .birthdayreminder-section h3 {
+	font-size: 1.2em;
 	font-weight: bold;
-	margin-bottom: 0.5em;
+	margin: 0 0 0.25em;
+}
+
+.birthdayreminder-section > p {
+	color: var(--color-text-maxcontrast, #767676);
+	margin: 0 0 1.25em;
+	max-width: 40em;
 }
 
 .birthdayreminder-row {
 	display: flex;
 	align-items: center;
 	gap: 0.5em;
-	margin-bottom: 0.5em;
+	margin-bottom: 0.75em;
 }
 
 .birthdayreminder-table {
@@ -75,4 +91,21 @@
 
 .birthdayreminder-day-input {
 	width: 5em;
+}
+
+.birthdayreminder-field-label {
+	display: block;
+	font-weight: bold;
+	margin: 1.25em 0 0.4em;
+}
+
+.birthdayreminder-field-label:first-of-type {
+	margin-top: 0;
+}
+
+.birthdayreminder-hint {
+	color: var(--color-text-maxcontrast, #767676);
+	font-size: 0.9em;
+	margin: -0.4em 0 0.75em;
+	max-width: 40em;
 }
