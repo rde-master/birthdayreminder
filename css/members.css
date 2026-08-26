@@ -14,25 +14,37 @@
 
 /*
  * Own min-width + explicit per-column widths (7 columns, summing to 100%) -
- * the shared .birthdayreminder-table's 5-column widths don't apply here, and
- * the default 46em min-width is too narrow for the Geburtsdatum column's
- * three number inputs.
+ * the shared .birthdayreminder-table's 5-column widths don't apply here.
+ * Geburtsdatum only needs room for 3 short number inputs, so it gets less
+ * than E-Mail, which needs room for longer addresses.
  */
 .birthdayreminder-members-table {
-	min-width: 68em;
+	min-width: 70em;
 }
 
 .birthdayreminder-members-table th:nth-child(1),
-.birthdayreminder-members-table td:nth-child(1) { width: 12%; } /* Vorname */
+.birthdayreminder-members-table td:nth-child(1) { width: 11%; } /* Vorname */
 .birthdayreminder-members-table th:nth-child(2),
-.birthdayreminder-members-table td:nth-child(2) { width: 12%; } /* Nachname */
+.birthdayreminder-members-table td:nth-child(2) { width: 11%; } /* Nachname */
 .birthdayreminder-members-table th:nth-child(3),
-.birthdayreminder-members-table td:nth-child(3) { width: 25%; } /* Geburtsdatum */
+.birthdayreminder-members-table td:nth-child(3) { width: 20%; } /* Geburtsdatum */
 .birthdayreminder-members-table th:nth-child(4),
-.birthdayreminder-members-table td:nth-child(4) { width: 18%; } /* E-Mail */
+.birthdayreminder-members-table td:nth-child(4) { width: 24%; } /* E-Mail */
 .birthdayreminder-members-table th:nth-child(5),
 .birthdayreminder-members-table td:nth-child(5) { width: 4%; } /* Deaktiviert */
 .birthdayreminder-members-table th:nth-child(6),
 .birthdayreminder-members-table td:nth-child(6) { width: 15%; } /* Bemerkung */
 .birthdayreminder-members-table th:nth-child(7),
-.birthdayreminder-members-table td:nth-child(7) { width: 14%; } /* Aktionen */
+.birthdayreminder-members-table td:nth-child(7) { width: 15%; } /* Aktionen */
+
+.birthdayreminder-filter-row td {
+	padding-top: 0.3em;
+	padding-bottom: 0.5em;
+}
+
+.birthdayreminder-filter-row input,
+.birthdayreminder-filter-row select {
+	width: 100%;
+	box-sizing: border-box;
+	font-size: 0.9em;
+}

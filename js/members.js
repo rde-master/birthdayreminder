@@ -241,11 +241,15 @@
 
 	// ---- Member list -------------------------------------------------
 
-	var membersTable;
-	var membersTableWrap;
+	var membersTbody;
+	var allMembers = [];
+	var memberFilters = { firstName: '', lastName: '', birthdate: '', email: '', disabled: 'all', remark: '' };
 
 	function loadMembersList() {
-		api('GET', '/admin/members').then(renderMembersTable).catch(showError);
+		api('GET', '/admin/members').then(function (members) {
+			allMembers = members;
+			renderFilteredRows();
+		}).catch(showError);
 	}
 
 	function birthdateFields(day, month, year) {
@@ -267,67 +271,118 @@
 		};
 	}
 
-	function renderMembersTable(members) {
-		membersTable.innerHTML = '';
-		membersTable.appendChild(el('tr', {}, [
-			el('th', { text: t('Vorname') }),
-			el('th', { text: t('Nachname') }),
-			el('th', { text: t('Geburtsdatum') }),
-			el('th', { text: t('E-Mail') }),
-			el('th', { text: t('Deaktiviert') }),
-			el('th', { text: t('Bemerkung') }),
-			el('th', { text: t('Aktionen') }),
-		]));
+	function formatBirthdateForFilter(m) {
+		var dd = String(m.birthDay).padStart(2, '0');
+		var mm = String(m.birthMonth).padStart(2, '0');
+		return m.birthYear ? (dd + '.' + mm + '.' + m.birthYear) : (dd + '.' + mm + '.');
+	}
 
-		if (members.length === 0) {
-			membersTable.appendChild(el('tr', {}, [
-				el('td', { colspan: '7', class: 'birthdayreminder-status', text: t('Noch keine Mitglieder eingetragen.') }),
-			]));
+	function matchesFilters(m) {
+		var f = memberFilters;
+		if (f.firstName && m.firstName.toLowerCase().indexOf(f.firstName.toLowerCase()) === -1) { return false; }
+		if (f.lastName && m.lastName.toLowerCase().indexOf(f.lastName.toLowerCase()) === -1) { return false; }
+		if (f.birthdate && formatBirthdateForFilter(m).indexOf(f.birthdate) === -1) { return false; }
+		if (f.email && (!m.email || m.email.toLowerCase().indexOf(f.email.toLowerCase()) === -1)) { return false; }
+		if (f.disabled === 'active' && m.disabled) { return false; }
+		if (f.disabled === 'disabled' && !m.disabled) { return false; }
+		if (f.remark && (!m.remark || m.remark.toLowerCase().indexOf(f.remark.toLowerCase()) === -1)) { return false; }
+		return true;
+	}
+
+	function renderFilterRow() {
+		function textFilter(key, placeholder) {
+			var input = el('input', { type: 'text', placeholder: placeholder });
+			input.value = memberFilters[key];
+			input.addEventListener('input', function () {
+				memberFilters[key] = input.value;
+				renderFilteredRows();
+			});
+			return input;
 		}
 
-		members.forEach(function (m) {
-			var firstNameInput = el('input', { type: 'text', value: m.firstName });
-			var lastNameInput = el('input', { type: 'text', value: m.lastName });
-			var birthdate = birthdateFields(m.birthDay, m.birthMonth, m.birthYear);
-			var emailInput = el('input', { type: 'email', value: m.email || '' });
-			var disabledCheckbox = el('input', { type: 'checkbox' });
-			disabledCheckbox.checked = !!m.disabled;
-			var remarkInput = el('input', { type: 'text', value: m.remark || '' });
+		var disabledSelect = el('select');
+		disabledSelect.appendChild(el('option', { value: 'all', text: t('Alle') }));
+		disabledSelect.appendChild(el('option', { value: 'active', text: t('Nur aktive') }));
+		disabledSelect.appendChild(el('option', { value: 'disabled', text: t('Nur deaktivierte') }));
+		disabledSelect.addEventListener('change', function () {
+			memberFilters.disabled = disabledSelect.value;
+			renderFilteredRows();
+		});
 
-			var saveButton = el('button', { type: 'button', class: 'button', text: t('Speichern') });
-			saveButton.addEventListener('click', function () {
-				var bd = birthdate.getValues();
-				api('POST', '/admin/members', {
-					id: m.id,
-					firstName: firstNameInput.value,
-					lastName: lastNameInput.value,
-					birthDay: bd.day,
-					birthMonth: bd.month,
-					birthYear: bd.year,
-					email: emailInput.value,
-					disabled: disabledCheckbox.checked,
-					remark: remarkInput.value,
-				}).then(loadMembersList).catch(showError);
-			});
+		return el('tr', { class: 'birthdayreminder-filter-row' }, [
+			el('td', {}, [textFilter('firstName', t('Filter …'))]),
+			el('td', {}, [textFilter('lastName', t('Filter …'))]),
+			el('td', {}, [textFilter('birthdate', t('z.B. 08. oder .1990'))]),
+			el('td', {}, [textFilter('email', t('Filter …'))]),
+			el('td', {}, [disabledSelect]),
+			el('td', {}, [textFilter('remark', t('Filter …'))]),
+			el('td', {}),
+		]);
+	}
 
-			var deleteButton = el('button', { type: 'button', class: 'button', text: t('Löschen') });
-			deleteButton.addEventListener('click', function () {
-				if (!window.confirm(t('Mitglied wirklich endgültig löschen?'))) {
-					return;
-				}
-				api('DELETE', '/admin/members/' + m.id).then(loadMembersList).catch(showError);
-			});
+	function renderMemberRow(m) {
+		var firstNameInput = el('input', { type: 'text', value: m.firstName });
+		var lastNameInput = el('input', { type: 'text', value: m.lastName });
+		var birthdate = birthdateFields(m.birthDay, m.birthMonth, m.birthYear);
+		var emailInput = el('input', { type: 'email', value: m.email || '' });
+		var disabledCheckbox = el('input', { type: 'checkbox' });
+		disabledCheckbox.checked = !!m.disabled;
+		var remarkInput = el('input', { type: 'text', value: m.remark || '' });
 
-			var row = el('tr', { class: m.disabled ? 'birthdayreminder-row-disabled' : '' }, [
-				el('td', {}, [firstNameInput]),
-				el('td', {}, [lastNameInput]),
-				el('td', {}, [birthdate.node]),
-				el('td', {}, [emailInput]),
-				el('td', {}, [disabledCheckbox]),
-				el('td', {}, [remarkInput]),
-				el('td', { class: 'birthdayreminder-actions' }, [saveButton, deleteButton]),
-			]);
-			membersTable.appendChild(row);
+		var saveButton = el('button', { type: 'button', class: 'button', text: t('Speichern') });
+		saveButton.addEventListener('click', function () {
+			var bd = birthdate.getValues();
+			api('POST', '/admin/members', {
+				id: m.id,
+				firstName: firstNameInput.value,
+				lastName: lastNameInput.value,
+				birthDay: bd.day,
+				birthMonth: bd.month,
+				birthYear: bd.year,
+				email: emailInput.value,
+				disabled: disabledCheckbox.checked,
+				remark: remarkInput.value,
+			}).then(loadMembersList).catch(showError);
+		});
+
+		var deleteButton = el('button', { type: 'button', class: 'button', text: t('Löschen') });
+		deleteButton.addEventListener('click', function () {
+			if (!window.confirm(t('Mitglied wirklich endgültig löschen?'))) {
+				return;
+			}
+			api('DELETE', '/admin/members/' + m.id).then(loadMembersList).catch(showError);
+		});
+
+		return el('tr', { class: m.disabled ? 'birthdayreminder-row-disabled' : '' }, [
+			el('td', {}, [firstNameInput]),
+			el('td', {}, [lastNameInput]),
+			el('td', {}, [birthdate.node]),
+			el('td', {}, [emailInput]),
+			el('td', {}, [disabledCheckbox]),
+			el('td', {}, [remarkInput]),
+			el('td', { class: 'birthdayreminder-actions' }, [saveButton, deleteButton]),
+		]);
+	}
+
+	function renderFilteredRows() {
+		membersTbody.innerHTML = '';
+		var filtered = allMembers.filter(matchesFilters);
+
+		if (allMembers.length === 0) {
+			membersTbody.appendChild(el('tr', {}, [
+				el('td', { colspan: '7', class: 'birthdayreminder-status', text: t('Noch keine Mitglieder eingetragen.') }),
+			]));
+			return;
+		}
+		if (filtered.length === 0) {
+			membersTbody.appendChild(el('tr', {}, [
+				el('td', { colspan: '7', class: 'birthdayreminder-status', text: t('Kein Mitglied entspricht den Filtern.') }),
+			]));
+			return;
+		}
+
+		filtered.forEach(function (m) {
+			membersTbody.appendChild(renderMemberRow(m));
 		});
 	}
 
@@ -376,10 +431,27 @@
 
 	function renderMembersList(root) {
 		var wrap = section(t('Mitgliederliste'));
-		membersTableWrap = el('div', { class: 'birthdayreminder-table-wrap' });
-		membersTable = el('table', { class: 'birthdayreminder-table birthdayreminder-members-table' });
+
+		var membersTableWrap = el('div', { class: 'birthdayreminder-table-wrap' });
+		var membersTable = el('table', { class: 'birthdayreminder-table birthdayreminder-members-table' });
+		var thead = el('thead', {}, [
+			el('tr', {}, [
+				el('th', { text: t('Vorname') }),
+				el('th', { text: t('Nachname') }),
+				el('th', { text: t('Geburtsdatum') }),
+				el('th', { text: t('E-Mail') }),
+				el('th', { text: t('Deaktiviert') }),
+				el('th', { text: t('Bemerkung') }),
+				el('th', { text: t('Aktionen') }),
+			]),
+			renderFilterRow(),
+		]);
+		membersTbody = el('tbody');
+		membersTable.appendChild(thead);
+		membersTable.appendChild(membersTbody);
 		membersTableWrap.appendChild(membersTable);
 		wrap.appendChild(membersTableWrap);
+
 		renderAddMemberPanel(wrap);
 		root.appendChild(wrap);
 		loadMembersList();
