@@ -1,6 +1,6 @@
-birthdayreminder/vendor/
-birthdayreminder/node_modules/
-birthdayreminder/js/*.js
-birthdayreminder/js/*.js.map
-birthdayreminder/.phpunit.result.cache
+vendor/
+node_modules/
+js/*.js
+js/*.js.map
+.phpunit.result.cache
 .DS_Store

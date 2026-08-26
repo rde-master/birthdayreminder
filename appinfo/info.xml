@@ -12,7 +12,7 @@
     <category>organization</category>
     <bugs>https://example.invalid/issues</bugs>
     <dependencies>
-        <nextcloud min-version="28" max-version="31"/>
+        <nextcloud min-version="28" max-version="34"/>
     </dependencies>
     <!--
     M1 scope only: just the debug command. background-jobs, settings and the
