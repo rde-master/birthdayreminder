@@ -455,8 +455,9 @@
 		membersTable.appendChild(membersTbody);
 		membersTableWrap.appendChild(membersTable);
 
-		var listVisible = true;
-		var toggleButton = el('button', { type: 'button', class: 'button', text: t('Liste ausblenden') });
+		var listVisible = false;
+		membersTableWrap.style.display = 'none';
+		var toggleButton = el('button', { type: 'button', class: 'button', text: t('Liste anzeigen') });
 		toggleButton.addEventListener('click', function () {
 			listVisible = !listVisible;
 			membersTableWrap.style.display = listVisible ? '' : 'none';
