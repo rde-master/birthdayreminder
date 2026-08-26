@@ -417,7 +417,7 @@
 			});
 		});
 
-		var panel = el('div', { class: 'birthdayreminder-add-panel' });
+		var panel = el('div', { class: 'birthdayreminder-add-panel birthdayreminder-add-panel-top' });
 		panel.appendChild(el('h4', { text: t('Neues Mitglied hinzufügen') }));
 		panel.appendChild(el('div', { class: 'birthdayreminder-add-grid' }, [
 			el('div', {}, [el('label', { class: 'birthdayreminder-field-label', text: t('Vorname') }), firstNameInput]),
@@ -431,6 +431,10 @@
 
 	function renderMembersList(root) {
 		var wrap = section(t('Mitgliederliste'));
+
+		// Add-new-member form goes first, so it's reachable without scrolling
+		// past the (potentially long) existing list.
+		renderAddMemberPanel(wrap);
 
 		var membersTableWrap = el('div', { class: 'birthdayreminder-table-wrap' });
 		var membersTable = el('table', { class: 'birthdayreminder-table birthdayreminder-members-table' });
@@ -450,9 +454,19 @@
 		membersTable.appendChild(thead);
 		membersTable.appendChild(membersTbody);
 		membersTableWrap.appendChild(membersTable);
+
+		var listVisible = true;
+		var toggleButton = el('button', { type: 'button', class: 'button', text: t('Liste ausblenden') });
+		toggleButton.addEventListener('click', function () {
+			listVisible = !listVisible;
+			membersTableWrap.style.display = listVisible ? '' : 'none';
+			toggleButton.textContent = listVisible ? t('Liste ausblenden') : t('Liste anzeigen');
+		});
+
+		wrap.appendChild(el('label', { class: 'birthdayreminder-field-label', text: t('Vorhandene Mitglieder') }));
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [toggleButton]));
 		wrap.appendChild(membersTableWrap);
 
-		renderAddMemberPanel(wrap);
 		root.appendChild(wrap);
 		loadMembersList();
 	}
