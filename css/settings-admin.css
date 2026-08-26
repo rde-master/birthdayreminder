@@ -190,3 +190,10 @@
 .birthdayreminder-add-grid > div {
 	min-width: 0;
 }
+
+.birthdayreminder-add-grid input[type="text"],
+.birthdayreminder-add-grid input[type="email"],
+.birthdayreminder-add-grid select {
+	width: 100%;
+	box-sizing: border-box;
+}
