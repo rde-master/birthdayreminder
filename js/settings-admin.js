@@ -414,6 +414,24 @@
 		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [remindersButton, remindersStatus]));
 		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [congratsButton, congratsStatus]));
 
+		wrap.appendChild(el('label', { class: 'birthdayreminder-field-label', text: t('Versand-Log') }));
+		wrap.appendChild(el('p', { class: 'birthdayreminder-hint', text: t('Das Versand-Log (einsehbar auf der Mitgliederseite) protokolliert, was bereits verschickt wurde, und verhindert dadurch doppelte Mails am selben Tag. Wird es gelöscht, gilt für den Rest des heutigen Tages nichts mehr als "bereits verschickt" - der nächste automatische oder manuelle Versand könnte dadurch Mails erneut verschicken, die heute schon rausgegangen sind.') }));
+
+		var clearLogButton = el('button', { type: 'button', class: 'button', text: t('Log löschen') });
+		var clearLogStatus = el('span', { class: 'birthdayreminder-status' });
+		clearLogButton.addEventListener('click', function () {
+			if (!window.confirm(t('Versand-Log wirklich vollständig löschen? Dadurch könnten heute bereits verschickte Erinnerungs- oder Glückwunsch-Mails beim nächsten Versand erneut verschickt werden.'))) {
+				return;
+			}
+			clearLogStatus.textContent = t('Wird gelöscht …');
+			api('DELETE', '/admin/log').then(function (res) {
+				clearLogStatus.textContent = res.deleted + ' ' + t('Einträge gelöscht.');
+			}).catch(function (err) {
+				clearLogStatus.textContent = String(err.message || err);
+			});
+		});
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [clearLogButton, clearLogStatus]));
+
 		root.appendChild(wrap);
 	}
 

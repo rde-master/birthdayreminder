@@ -41,6 +41,19 @@ class ReminderLogMapper extends QBMapper {
         return $this->findEntities($qb);
     }
 
+    /**
+     * Wipes the entire send history. Note: this also resets idempotency -
+     * anything already sent today would be eligible to send again on the
+     * next run. Callers should warn about that before invoking this.
+     *
+     * @return int number of rows deleted
+     */
+    public function deleteAll(): int {
+        $qb = $this->db->getQueryBuilder();
+        $qb->delete($this->getTableName());
+        return $qb->executeStatement();
+    }
+
     public function logSent(string $contactUid, string $reminderType, int $daysBefore, int $birthdayYear): ReminderLog {
         $log = new ReminderLog();
         $log->setContactUid($contactUid);

@@ -27,6 +27,7 @@ return [
         ['name' => 'adminApi#saveSchedule', 'url' => '/admin/schedule', 'verb' => 'POST'],
         ['name' => 'adminApi#triggerReminders', 'url' => '/admin/trigger-reminders', 'verb' => 'POST'],
         ['name' => 'adminApi#triggerCongrats', 'url' => '/admin/trigger-congrats', 'verb' => 'POST'],
+        ['name' => 'adminApi#clearLog', 'url' => '/admin/log', 'verb' => 'DELETE'],
 
         ['name' => 'personalApi#getSettings', 'url' => '/personal/settings', 'verb' => 'GET'],
         ['name' => 'personalApi#saveSettings', 'url' => '/personal/settings', 'verb' => 'POST'],

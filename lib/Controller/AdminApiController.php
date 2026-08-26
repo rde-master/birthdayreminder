@@ -9,6 +9,7 @@ use OCA\BirthdayReminder\Db\MilestoneMapper;
 use OCA\BirthdayReminder\Db\OffsetMapper;
 use OCA\BirthdayReminder\Db\Recipient;
 use OCA\BirthdayReminder\Db\RecipientMapper;
+use OCA\BirthdayReminder\Db\ReminderLogMapper;
 use OCA\BirthdayReminder\Service\ConfigService;
 use OCA\BirthdayReminder\Service\ReminderService;
 use OCA\BirthdayReminder\Settings\AdminSettings;
@@ -28,6 +29,7 @@ class AdminApiController extends Controller {
         private MilestoneMapper $milestoneMapper,
         private ConfigService $configService,
         private ReminderService $reminderService,
+        private ReminderLogMapper $reminderLogMapper,
         private LoggerInterface $logger,
     ) {
         parent::__construct($appName, $request);
@@ -176,6 +178,13 @@ class AdminApiController extends Controller {
         $this->logger->info('birthdayreminder: manual trigger - congrats');
         $this->reminderService->runCongrats();
         return new JSONResponse(['ok' => true]);
+    }
+
+    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
+    public function clearLog(): JSONResponse {
+        $deleted = $this->reminderLogMapper->deleteAll();
+        $this->logger->warning('birthdayreminder: send log cleared manually', ['deletedRows' => $deleted]);
+        return new JSONResponse(['ok' => true, 'deleted' => $deleted]);
     }
 
     private function serializeRecipient(Recipient $r): array {
