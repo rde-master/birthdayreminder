@@ -17,6 +17,16 @@ class RecipientMapper extends QBMapper {
     }
 
     /**
+     * @throws DoesNotExistException
+     */
+    public function find(int $id): Recipient {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')->from($this->getTableName())
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, \PDO::PARAM_INT)));
+        return $this->findEntity($qb);
+    }
+
+    /**
      * @return Recipient[]
      */
     public function findAll(): array {

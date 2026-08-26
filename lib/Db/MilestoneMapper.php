@@ -16,6 +16,16 @@ class MilestoneMapper extends QBMapper {
     }
 
     /**
+     * @throws \OCP\AppFramework\Db\DoesNotExistException
+     */
+    public function find(int $id): Milestone {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')->from($this->getTableName())
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, \PDO::PARAM_INT)));
+        return $this->findEntity($qb);
+    }
+
+    /**
      * @return Milestone[]
      */
     public function findAll(): array {

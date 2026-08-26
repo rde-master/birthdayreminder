@@ -15,9 +15,9 @@
         <nextcloud min-version="28" max-version="34"/>
     </dependencies>
     <!--
-    settings and the dashboard widget are added here as M4/M5 land, once their
-    classes exist - referencing a not-yet-implemented class would break every
-    request once the app is enabled (Application::register runs eagerly on boot).
+    the dashboard widget is added here once M5 lands - referencing a
+    not-yet-implemented class would break every request once the app is
+    enabled (Application::register runs eagerly on boot).
     -->
     <background-jobs>
         <job>OCA\BirthdayReminder\BackgroundJob\DailyReminderJob</job>
@@ -27,4 +27,15 @@
         <command>OCA\BirthdayReminder\Command\AddRecipient</command>
         <command>OCA\BirthdayReminder\Command\AddMilestone</command>
     </commands>
+    <settings>
+        <!--
+        admin-delegation (not plain admin/admin-section): lets a real Nextcloud
+        admin grant a chosen group (e.g. "Vorstand") access to this settings
+        page without giving them full instance-admin rights, see AdminSettings.
+        -->
+        <admin-delegation>OCA\BirthdayReminder\Settings\AdminSettings</admin-delegation>
+        <admin-delegation-section>OCA\BirthdayReminder\Settings\AdminSection</admin-delegation-section>
+        <personal>OCA\BirthdayReminder\Settings\PersonalSettings</personal>
+        <personal-section>OCA\BirthdayReminder\Settings\PersonalSection</personal-section>
+    </settings>
 </info>
