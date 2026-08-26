@@ -377,7 +377,7 @@
 	function renderMembersList(root) {
 		var wrap = section(t('Mitgliederliste'));
 		membersTableWrap = el('div', { class: 'birthdayreminder-table-wrap' });
-		membersTable = el('table', { class: 'birthdayreminder-table' });
+		membersTable = el('table', { class: 'birthdayreminder-table birthdayreminder-members-table' });
 		membersTableWrap.appendChild(membersTable);
 		wrap.appendChild(membersTableWrap);
 		renderAddMemberPanel(wrap);

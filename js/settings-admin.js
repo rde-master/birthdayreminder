@@ -140,7 +140,7 @@
 		}));
 
 		var tableWrap = el('div', { class: 'birthdayreminder-table-wrap' });
-		var table = el('table', { class: 'birthdayreminder-table' });
+		var table = el('table', { class: 'birthdayreminder-table birthdayreminder-recipients-table' });
 		tableWrap.appendChild(table);
 		wrap.appendChild(tableWrap);
 		wrap.appendChild(el('p', {
@@ -251,7 +251,7 @@
 
 	function renderMilestones(root) {
 		var wrap = section(t('Runde Geburtstage / Geschenke'));
-		var table = el('table', { class: 'birthdayreminder-table' });
+		var table = el('table', { class: 'birthdayreminder-table birthdayreminder-milestones-table' });
 		wrap.appendChild(table);
 
 		var ageInput = el('input', { type: 'number', placeholder: t('Alter'), style: 'width:6em' });

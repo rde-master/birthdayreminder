@@ -52,30 +52,31 @@
 	border-bottom: 1px solid var(--color-border, #dbdbdb);
 }
 
-.birthdayreminder-table th:nth-child(1),
-.birthdayreminder-table td:nth-child(1) {
-	width: 12%;
-}
+/*
+ * Column widths are scoped per table (by column count/content), not to the
+ * shared .birthdayreminder-table base class - applying one fixed set of
+ * nth-child percentages to tables with a different number of columns is
+ * exactly what caused gaps/overlaps (recipients: 5 cols, milestones: 3 cols,
+ * members: 7 cols). Each table below declares 100% split across its own
+ * actual column count.
+ */
+.birthdayreminder-recipients-table th:nth-child(1),
+.birthdayreminder-recipients-table td:nth-child(1) { width: 12%; } /* Typ */
+.birthdayreminder-recipients-table th:nth-child(2),
+.birthdayreminder-recipients-table td:nth-child(2) { width: 20%; } /* Wert */
+.birthdayreminder-recipients-table th:nth-child(3),
+.birthdayreminder-recipients-table td:nth-child(3) { width: 33%; } /* Vorlaufzeiten */
+.birthdayreminder-recipients-table th:nth-child(4),
+.birthdayreminder-recipients-table td:nth-child(4) { width: 17%; } /* Umfang */
+.birthdayreminder-recipients-table th:nth-child(5),
+.birthdayreminder-recipients-table td:nth-child(5) { width: 18%; } /* Aktionen */
 
-.birthdayreminder-table th:nth-child(2),
-.birthdayreminder-table td:nth-child(2) {
-	width: 20%;
-}
-
-.birthdayreminder-table th:nth-child(3),
-.birthdayreminder-table td:nth-child(3) {
-	width: 33%;
-}
-
-.birthdayreminder-table th:nth-child(4),
-.birthdayreminder-table td:nth-child(4) {
-	width: 17%;
-}
-
-.birthdayreminder-table th:nth-child(5),
-.birthdayreminder-table td:nth-child(5) {
-	width: 18%;
-}
+.birthdayreminder-milestones-table th:nth-child(1),
+.birthdayreminder-milestones-table td:nth-child(1) { width: 15%; } /* Alter */
+.birthdayreminder-milestones-table th:nth-child(2),
+.birthdayreminder-milestones-table td:nth-child(2) { width: 65%; } /* Geschenkvorschlag */
+.birthdayreminder-milestones-table th:nth-child(3),
+.birthdayreminder-milestones-table td:nth-child(3) { width: 20%; } /* Aktionen */
 
 .birthdayreminder-table input[type="text"] {
 	width: 100%;
