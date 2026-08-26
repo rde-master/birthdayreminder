@@ -24,6 +24,10 @@ final class MailService {
             'name' => $member->displayName,
             'daysBefore' => $daysBefore,
         ]);
+        // useTemplate() below pulls the actual mail Subject header from the
+        // template's own renderSubject(), not from Message::setSubject() -
+        // without this line the mail goes out with an empty subject.
+        $template->setSubject($subject);
         $template->addHeader();
         $template->addHeading($subject);
         $template->addBodyText($this->reminderBody($member, $daysBefore));
@@ -34,13 +38,13 @@ final class MailService {
 
         $message = $this->mailer->createMessage();
         $message->setTo([$toEmail]);
-        $message->setSubject($subject);
         $message->useTemplate($template);
         $this->mailer->send($message);
     }
 
     public function sendCongratulation(string $toEmail, string $subject, string $body): void {
         $template = $this->mailer->createEMailTemplate('birthdayreminder.congrats', []);
+        $template->setSubject($subject);
         $template->addHeader();
         $template->addHeading($subject);
         $template->addBodyText($body);
@@ -48,7 +52,6 @@ final class MailService {
 
         $message = $this->mailer->createMessage();
         $message->setTo([$toEmail]);
-        $message->setSubject($subject);
         $message->useTemplate($template);
         $this->mailer->send($message);
     }
