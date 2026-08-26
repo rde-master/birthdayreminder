@@ -15,12 +15,16 @@
         <nextcloud min-version="28" max-version="34"/>
     </dependencies>
     <!--
-    M1 scope only: just the debug command. background-jobs, settings and the
-    dashboard widget are added in info.xml as M2/M4/M5 land, once their classes exist -
-    referencing a not-yet-implemented class here would break every request once
-    the app is enabled (Application::register runs eagerly on boot).
+    settings and the dashboard widget are added here as M4/M5 land, once their
+    classes exist - referencing a not-yet-implemented class would break every
+    request once the app is enabled (Application::register runs eagerly on boot).
     -->
+    <background-jobs>
+        <job>OCA\BirthdayReminder\BackgroundJob\DailyReminderJob</job>
+    </background-jobs>
     <commands>
         <command>OCA\BirthdayReminder\Command\DebugUpcoming</command>
+        <command>OCA\BirthdayReminder\Command\AddRecipient</command>
+        <command>OCA\BirthdayReminder\Command\AddMilestone</command>
     </commands>
 </info>
