@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace OCA\BirthdayReminder\AppInfo;
 
-use Closure;
 use OCA\BirthdayReminder\Dashboard\BirthdayWidget;
+use OCA\BirthdayReminder\Listener\LoadNavigationEntryListener;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
-use OCP\IGroupManager;
-use OCP\INavigationManager;
-use OCP\IURLGenerator;
-use OCP\IUserSession;
+use OCP\Navigation\Events\LoadAdditionalEntriesEvent;
 
 class Application extends App implements IBootstrap {
     public const APP_ID = 'birthdayreminder';
@@ -35,46 +32,11 @@ class Application extends App implements IBootstrap {
 
     public function register(IRegistrationContext $context): void {
         $context->registerDashboardWidget(BirthdayWidget::class);
+        // Registers the top-nav entry only for authorized users (see
+        // LoadNavigationEntryListener for why this can't happen in boot()).
+        $context->registerEventListener(LoadAdditionalEntriesEvent::class, LoadNavigationEntryListener::class);
     }
 
-    /**
-     * The top navigation entry is registered dynamically (not declared in
-     * info.xml) so that users outside both app groups - and outside the
-     * Nextcloud system admins - never see it at all, rather than seeing a
-     * link that then 403s.
-     */
     public function boot(IBootContext $context): void {
-        $context->injectFn(Closure::fromCallable([$this, 'registerNavigationIfAuthorized']));
-    }
-
-    private function registerNavigationIfAuthorized(
-        IUserSession $userSession,
-        IGroupManager $groupManager,
-        INavigationManager $navigationManager,
-        IURLGenerator $urlGenerator,
-    ): void {
-        $user = $userSession->getUser();
-        if ($user === null) {
-            return;
-        }
-
-        $uid = $user->getUID();
-        $authorized = $groupManager->isAdmin($uid)
-            || $groupManager->isInGroup($uid, self::GROUP_VERANTWORTLICHE)
-            || $groupManager->isInGroup($uid, self::GROUP_ADMIN);
-        if (!$authorized) {
-            return;
-        }
-
-        $navigationManager->add(static function () use ($urlGenerator): array {
-            return [
-                'id' => Application::APP_ID,
-                'order' => 50,
-                'href' => $urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
-                'icon' => $urlGenerator->imagePath(Application::APP_ID, 'app.svg'),
-                'name' => 'Geburtstagserinnerung',
-                'type' => INavigationManager::TYPE_APPS,
-            ];
-        });
     }
 }
