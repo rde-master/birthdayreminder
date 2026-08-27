@@ -21,6 +21,7 @@ use OCA\BirthdayReminder\Settings\MemberAreaAccess;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http\Attribute\AuthorizedAdminSetting;
+use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IRequest;
@@ -114,7 +115,12 @@ class MembersApiController extends Controller {
      * A blank-to-fill-in CSV matching exactly what the CSV import expects,
      * with two example rows demonstrating both supported Geburtsdatum
      * formats (with and without a known year) and an empty-E-Mail row.
+     *
+     * NoCSRFRequired: this is reached via a plain <a href> download link,
+     * not the JS fetch() helper that attaches the requesttoken header -
+     * a read-only GET with no side effects, so exempting it is safe.
      */
+    #[NoCSRFRequired]
     #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
     public function importTemplateCsv(): DataDownloadResponse {
         $rows = [
@@ -163,6 +169,7 @@ class MembersApiController extends Controller {
         return new JSONResponse($result);
     }
 
+    #[NoCSRFRequired]
     #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
     public function exportMembersCsv(): DataDownloadResponse {
         $rows = array_map(function (Member $m): array {
@@ -256,6 +263,7 @@ class MembersApiController extends Controller {
         return new JSONResponse($this->buildLogRows());
     }
 
+    #[NoCSRFRequired]
     #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
     public function exportSendLogCsv(): DataDownloadResponse {
         $rows = array_map(function (array $entry): array {
