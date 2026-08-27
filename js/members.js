@@ -299,7 +299,7 @@
 		return result.map(function (s) { return s.trim(); });
 	}
 
-	function renderImport(root) {
+	function renderCsvImportSection(root) {
 		var wrap = section(t('CSV-Import'));
 		wrap.appendChild(el('p', {
 			text: t('CSV-Datei auswählen, Spalten den Feldern zuordnen und importieren. Neue Namen (Vorname+Nachname) werden angelegt, vorhandene bei Änderungen aktualisiert, und Mitglieder, die in der Datei fehlen, werden automatisch deaktiviert (mit Bemerkung „' + MemberSyncAutoRemark() + '“). Bereits deaktivierte Mitglieder werden dabei nicht automatisch wieder aktiviert.'),
@@ -422,6 +422,60 @@
 		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [importButton]));
 		wrap.appendChild(resultWrap);
 		root.appendChild(wrap);
+	}
+
+	function renderCsvExportSection(root) {
+		var wrap = section(t('CSV-Export'));
+		wrap.appendChild(el('p', {
+			text: t('Lädt alle Mitglieder (inklusive deaktivierter) als CSV-Datei herunter - im selben Format, das auch der CSV-Import erwartet.'),
+		}));
+		var link = el('a', { class: 'button primary', href: url('/admin/members/export-csv'), text: t('Mitgliederliste als CSV herunterladen') });
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [link]));
+		root.appendChild(wrap);
+	}
+
+	function renderContactsSection(root) {
+		var wrap = section(t('Kontakte'));
+		wrap.appendChild(el('p', {
+			text: t('Import aus den eigenen Kontakten: Vorname/Nachname werden aus dem Namensfeld übernommen, Kontakte ohne verwertbaren Namen oder ohne (lesbares) Geburtsdatum werden übersprungen. Export: alle aktiven Mitglieder werden in ein eigenes, beschreibbares Adressbuch geschrieben (Abgleich per vollständigem Namen, bereits vorhandene Kontakte werden aktualisiert statt doppelt angelegt).'),
+		}));
+
+		var importButton = el('button', { type: 'button', class: 'button', text: t('Aus Kontakten importieren') });
+		var importStatus = el('div', { class: 'birthdayreminder-status' });
+		importButton.addEventListener('click', function () {
+			importStatus.textContent = t('Importiere …');
+			api('POST', '/admin/members/import-contacts', {}).then(function (res) {
+				var msg = t('Fertig: ') + res.inserted + t(' neu, ') + res.updated + t(' aktualisiert, ') + res.unchanged + t(' unverändert, ') + res.disabled + t(' deaktiviert.');
+				if (res.errors && res.errors.length > 0) {
+					msg += ' ' + res.errors.length + t(' Kontakt(e) übersprungen: ') + res.errors.join(' | ');
+				}
+				importStatus.textContent = msg;
+				loadMembersList();
+			}).catch(function (err) {
+				importStatus.textContent = String(err.message || err);
+			});
+		});
+
+		var exportButton = el('button', { type: 'button', class: 'button', text: t('Aktive Mitglieder in Kontakte exportieren') });
+		var exportStatus = el('div', { class: 'birthdayreminder-status' });
+		exportButton.addEventListener('click', function () {
+			exportStatus.textContent = t('Exportiere …');
+			api('POST', '/admin/members/export-contacts', {}).then(function (res) {
+				exportStatus.textContent = t('Fertig: ') + res.created + t(' neu angelegt, ') + res.updated + t(' aktualisiert in „') + res.addressBookName + '“.';
+			}).catch(function (err) {
+				exportStatus.textContent = String(err.message || err);
+			});
+		});
+
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [importButton, importStatus]));
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [exportButton, exportStatus]));
+		root.appendChild(wrap);
+	}
+
+	function renderImportExport(root) {
+		renderCsvImportSection(root);
+		renderCsvExportSection(root);
+		renderContactsSection(root);
 	}
 
 	function MemberSyncAutoRemark() {
@@ -684,6 +738,9 @@
 			text: t('Protokoll aller tatsächlich verschickten Erinnerungs- und Glückwunsch-Mails (die letzten 200 Einträge, neueste zuerst). Dient auch der Nachvollziehbarkeit, warum eine Mail an einem Tag nicht erneut verschickt wurde.'),
 		}));
 
+		var exportLink = el('a', { class: 'button', href: url('/admin/send-log/export-csv'), text: t('Als CSV exportieren') });
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [exportLink]));
+
 		var contentWrap = el('div');
 
 		function renderTable(entries) {
@@ -783,7 +840,7 @@
 	var NAV_ITEMS = [
 		{ key: 'overview', label: t('Übersicht') },
 		{ key: 'members', label: t('Mitgliederliste') },
-		{ key: 'import', label: t('CSV-Import') },
+		{ key: 'import', label: t('Import/Export') },
 		{ key: 'gifts', label: t('Geschenke') },
 		{ key: 'logs', label: t('Logs') },
 	];
@@ -829,7 +886,7 @@
 
 		var overviewHandle = renderOverview(panels.overview);
 		var membersHandle = renderMembersList(panels.members);
-		renderImport(panels.import);
+		renderImportExport(panels.import);
 		var giftsHandle = renderGifts(panels.gifts);
 		var logsHandle = renderSendLog(panels.logs);
 

@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace OCA\BirthdayReminder\Controller;
 
 use DateTimeImmutable;
+use OCA\BirthdayReminder\Contacts\ContactsGateway;
 use OCA\BirthdayReminder\Db\Member;
 use OCA\BirthdayReminder\Db\MemberMapper;
 use OCA\BirthdayReminder\Db\Milestone;
 use OCA\BirthdayReminder\Db\MilestoneMapper;
 use OCA\BirthdayReminder\Db\ReminderLog;
 use OCA\BirthdayReminder\Db\ReminderLogMapper;
+use OCA\BirthdayReminder\Service\CsvExporter;
 use OCA\BirthdayReminder\Service\CsvImportService;
 use OCA\BirthdayReminder\Service\CsvParser;
 use OCA\BirthdayReminder\Service\ReminderCalculator;
@@ -19,6 +21,7 @@ use OCA\BirthdayReminder\Settings\MemberAreaAccess;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http\Attribute\AuthorizedAdminSetting;
+use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IRequest;
 
@@ -29,6 +32,8 @@ class MembersApiController extends Controller {
         private MemberMapper $memberMapper,
         private CsvImportService $csvImportService,
         private CsvParser $csvParser,
+        private CsvExporter $csvExporter,
+        private ContactsGateway $contactsGateway,
         private ReminderLogMapper $reminderLogMapper,
         private ReminderService $reminderService,
         private ReminderCalculator $calculator,
@@ -116,6 +121,57 @@ class MembersApiController extends Controller {
     }
 
     /**
+     * Imports from the current user's own Nextcloud contacts (all of their
+     * personal/shared address books, excluding the system book). Shares the
+     * exact same diff/apply logic as the CSV import (CsvImportService::
+     * applyParsedRows()), so the same insert/update/unchanged/auto-disable
+     * rules apply.
+     */
+    #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
+    public function importContacts(): JSONResponse {
+        $parsed = $this->contactsGateway->importFromUserContacts();
+        $result = $this->csvImportService->applyParsedRows($parsed['rows'], $parsed['errors']);
+        return new JSONResponse($result);
+    }
+
+    /**
+     * Exports all active members into the current user's own writable
+     * personal address book (creating or updating by matching full name).
+     */
+    #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
+    public function exportContacts(): JSONResponse {
+        try {
+            $result = $this->contactsGateway->exportMembersToUserContacts($this->memberMapper->findAllActive());
+        } catch (\RuntimeException $e) {
+            return new JSONResponse(['error' => $e->getMessage()], 400);
+        }
+        return new JSONResponse($result);
+    }
+
+    #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
+    public function exportMembersCsv(): DataDownloadResponse {
+        $rows = array_map(function (Member $m): array {
+            return [
+                $m->getFirstName(),
+                $m->getLastName(),
+                $this->formatBirthdateForCsv($m->getBirthDay(), $m->getBirthMonth(), $m->getBirthYear()),
+                $m->getEmail() ?? '',
+                $m->getDisabled() ? 'Ja' : 'Nein',
+                $m->getRemark() ?? '',
+            ];
+        }, $this->memberMapper->findAll());
+
+        $csv = $this->csvExporter->toCsv(['Vorname', 'Nachname', 'Geburtsdatum', 'E-Mail', 'Deaktiviert', 'Bemerkung'], $rows);
+        return new DataDownloadResponse($csv, 'mitglieder.csv', 'text/csv; charset=UTF-8');
+    }
+
+    private function formatBirthdateForCsv(int $day, int $month, ?int $year): string {
+        $dd = str_pad((string)$day, 2, '0', STR_PAD_LEFT);
+        $mm = str_pad((string)$month, 2, '0', STR_PAD_LEFT);
+        return $year !== null ? "{$dd}.{$mm}.{$year}" : "{$dd}.{$mm}.";
+    }
+
+    /**
      * Upcoming birthdays of active members, bucketed into "today" / "next 7
      * days" / "next 30 days" (non-overlapping), plus a per-month birthday
      * count (index 0 = January) across all active members - for the
@@ -182,6 +238,29 @@ class MembersApiController extends Controller {
 
     #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
     public function getSendLog(): JSONResponse {
+        return new JSONResponse($this->buildLogRows());
+    }
+
+    #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
+    public function exportSendLogCsv(): DataDownloadResponse {
+        $rows = array_map(function (array $entry): array {
+            return [
+                $entry['memberName'],
+                $entry['reminderType'] === ReminderLog::TYPE_CONGRATS ? 'Glückwunsch ans Mitglied' : 'Erinnerung an Verantwortliche',
+                $entry['daysBefore'] === null ? '' : (string)$entry['daysBefore'],
+                (string)$entry['birthdayYear'],
+                date('d.m.Y H:i', $entry['sentAt']),
+            ];
+        }, $this->buildLogRows());
+
+        $csv = $this->csvExporter->toCsv(['Mitglied', 'Art', 'Vorlaufzeit (Tage)', 'Bezugsjahr', 'Gesendet am'], $rows);
+        return new DataDownloadResponse($csv, 'versand-log.csv', 'text/csv; charset=UTF-8');
+    }
+
+    /**
+     * @return list<array{id: int, memberName: string, reminderType: string, daysBefore: ?int, birthdayYear: int, sentAt: int}>
+     */
+    private function buildLogRows(): array {
         $logs = $this->reminderLogMapper->findRecent(200);
 
         $memberNames = [];
@@ -189,7 +268,7 @@ class MembersApiController extends Controller {
             $memberNames[(string)$member->getId()] = $member->getDisplayName();
         }
 
-        return new JSONResponse(array_map(function (ReminderLog $log) use ($memberNames): array {
+        return array_map(function (ReminderLog $log) use ($memberNames): array {
             return [
                 'id' => $log->getId(),
                 'memberName' => $memberNames[$log->getContactUid()] ?? ('Unbekannt/gelöscht (ID ' . $log->getContactUid() . ')'),
@@ -198,7 +277,7 @@ class MembersApiController extends Controller {
                 'birthdayYear' => $log->getBirthdayYear(),
                 'sentAt' => $log->getSentAt(),
             ];
-        }, $logs));
+        }, $logs);
     }
 
     /**

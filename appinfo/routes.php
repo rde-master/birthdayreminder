@@ -10,8 +10,12 @@ return [
         ['name' => 'membersApi#saveMember', 'url' => '/admin/members', 'verb' => 'POST'],
         ['name' => 'membersApi#deleteMember', 'url' => '/admin/members/{id}', 'verb' => 'DELETE', 'requirements' => ['id' => '\d+']],
         ['name' => 'membersApi#importMembers', 'url' => '/admin/members/import', 'verb' => 'POST'],
+        ['name' => 'membersApi#importContacts', 'url' => '/admin/members/import-contacts', 'verb' => 'POST'],
+        ['name' => 'membersApi#exportContacts', 'url' => '/admin/members/export-contacts', 'verb' => 'POST'],
+        ['name' => 'membersApi#exportMembersCsv', 'url' => '/admin/members/export-csv', 'verb' => 'GET'],
         ['name' => 'membersApi#getOverview', 'url' => '/admin/overview', 'verb' => 'GET'],
         ['name' => 'membersApi#getSendLog', 'url' => '/admin/send-log', 'verb' => 'GET'],
+        ['name' => 'membersApi#exportSendLogCsv', 'url' => '/admin/send-log/export-csv', 'verb' => 'GET'],
         ['name' => 'membersApi#getGifts', 'url' => '/admin/gifts', 'verb' => 'GET'],
 
         ['name' => 'adminApi#getRecipients', 'url' => '/admin/recipients', 'verb' => 'GET'],

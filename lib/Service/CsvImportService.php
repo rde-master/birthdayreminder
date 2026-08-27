@@ -9,7 +9,10 @@ use OCA\BirthdayReminder\Db\MemberMapper;
 
 /**
  * Orchestrates a CSV import: parse -> validate rows -> diff against the
- * current member registry -> apply the plan via MemberMapper.
+ * current member registry -> apply the plan via MemberMapper. The
+ * diff+apply half (applyParsedRows()) is shared with the Contacts import
+ * (ContactsGateway), which produces the same parsed-row shape from a
+ * different source.
  */
 final class CsvImportService {
     public function __construct(
@@ -77,6 +80,15 @@ final class CsvImportService {
             ];
         }
 
+        return $this->applyParsedRows($parsedRows, $errors);
+    }
+
+    /**
+     * @param array<int, array{firstName: string, lastName: string, birthDay: int, birthMonth: int, birthYear: ?int, email: ?string}> $parsedRows
+     * @param list<string> $errors carried through unchanged, e.g. from the caller's own parsing step
+     * @return array{inserted: int, updated: int, unchanged: int, disabled: int, errors: list<string>}
+     */
+    public function applyParsedRows(array $parsedRows, array $errors = []): array {
         $existingMembers = array_map(self::entityToPlanArray(...), $this->memberMapper->findAll());
         $plan = $this->planner->plan($existingMembers, $parsedRows);
 
