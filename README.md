@@ -109,7 +109,7 @@ Ein bereits deaktiviertes Mitglied wird **nicht automatisch wieder aktiviert**, 
 
 Alle Mails sind bewusst einfacher reiner Text — kein Nextcloud-Logo, keine Fußzeile, kein HTML-Vorlagen-Gerüst (`OCP\Mail\IEMailTemplate` erzeugt sonst einen großen Banner samt Restlayout, das auch ohne Header/Footer noch sichtbare Leerbereiche hinterlässt). Absender-Anzeigename ist „Geburtstagserinnerung" statt des Instanz-Theming-Namens; die eigentliche Absenderadresse kommt weiterhin aus der Nextcloud-Mailkonfiguration.
 
-Die Erinnerungs-Mail an Verantwortliche nennt in Betreff und Text automatisch Geburtsdatum, Wochentag und (falls bekannt) das Alter; ist kein Geburtsjahr hinterlegt, steht explizit „Alter unbekannt" statt es wegzulassen.
+Die Erinnerungs-Mail an Verantwortliche nennt im Text automatisch Geburtsdatum, Wochentag und (falls bekannt) das Alter; ist kein Geburtsjahr hinterlegt, steht explizit „Alter unbekannt" statt es wegzulassen. Der Betreff nennt standardmäßig nur das Alter — pro Empfänger lässt sich unter „Umfang" zusätzlich „Geburtsdatum im Betreff" aktivieren (standardmäßig aus), dann steht das Datum auch dort.
 
 ## Entwicklung
 

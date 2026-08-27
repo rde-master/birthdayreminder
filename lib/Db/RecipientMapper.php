@@ -56,6 +56,7 @@ class RecipientMapper extends QBMapper {
         $recipient->setRecipientType($type);
         $recipient->setRecipientValue($value);
         $recipient->setOnlyMilestones(false);
+        $recipient->setBirthdateInSubject(false);
         $recipient->setCreatedAt(time());
         return $this->insert($recipient);
     }

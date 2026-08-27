@@ -34,8 +34,8 @@ final class MailService {
      *              logs it and returns the list of failed addresses instead), so
      *              callers must check this return value rather than assume success.
      */
-    public function sendReminder(string $toEmail, Member $member, int $daysBefore, DateTimeImmutable $targetDate, ?int $age, ?string $giftText): bool {
-        $subject = $this->reminderSubject($member, $daysBefore, $age);
+    public function sendReminder(string $toEmail, Member $member, int $daysBefore, DateTimeImmutable $targetDate, ?int $age, ?string $giftText, bool $birthdateInSubject = false): bool {
+        $subject = $this->reminderSubject($member, $daysBefore, $age, $targetDate, $birthdateInSubject);
 
         $body = $this->reminderBody($member, $daysBefore, $targetDate, $age);
         if ($giftText !== null) {
@@ -65,12 +65,17 @@ final class MailService {
         return empty($failedRecipients);
     }
 
-    private function reminderSubject(Member $member, int $daysBefore, ?int $age): string {
-        $ageStr = $age !== null ? sprintf(' (wird %d)', $age) : ' (Alter unbekannt)';
-        if ($daysBefore === 0) {
-            return sprintf('%s hat heute Geburtstag%s', $member->displayName, $ageStr);
+    private function reminderSubject(Member $member, int $daysBefore, ?int $age, DateTimeImmutable $targetDate, bool $birthdateInSubject): string {
+        $details = [$age !== null ? sprintf('wird %d', $age) : 'Alter unbekannt'];
+        if ($birthdateInSubject) {
+            $details[] = $targetDate->format('d.m.');
         }
-        return sprintf('%s hat in %d Tag(en) Geburtstag%s', $member->displayName, $daysBefore, $ageStr);
+        $suffix = ' (' . implode(', ', $details) . ')';
+
+        if ($daysBefore === 0) {
+            return sprintf('%s hat heute Geburtstag%s', $member->displayName, $suffix);
+        }
+        return sprintf('%s hat in %d Tag(en) Geburtstag%s', $member->displayName, $daysBefore, $suffix);
     }
 
     private function reminderBody(Member $member, int $daysBefore, DateTimeImmutable $targetDate, ?int $age): string {

@@ -47,7 +47,7 @@ class AdminApiController extends Controller {
      * @param int[] $offsets
      */
     #[AuthorizedAdminSetting(settings: AdminSettings::class)]
-    public function saveRecipient(?int $id, string $type, string $value, bool $onlyMilestones, array $offsets): JSONResponse {
+    public function saveRecipient(?int $id, string $type, string $value, bool $onlyMilestones, bool $birthdateInSubject, array $offsets): JSONResponse {
         if (!in_array($type, [Recipient::TYPE_USER, Recipient::TYPE_GROUP, Recipient::TYPE_EMAIL], true)) {
             return new JSONResponse(['error' => 'invalid type'], 400);
         }
@@ -61,10 +61,12 @@ class AdminApiController extends Controller {
             $recipient->setRecipientType($type);
             $recipient->setRecipientValue($value);
             $recipient->setOnlyMilestones($onlyMilestones);
+            $recipient->setBirthdateInSubject($birthdateInSubject);
             $this->recipientMapper->update($recipient);
         } else {
             $recipient = $this->recipientMapper->findOrCreate($type, $value);
             $recipient->setOnlyMilestones($onlyMilestones);
+            $recipient->setBirthdateInSubject($birthdateInSubject);
             $this->recipientMapper->update($recipient);
         }
 
@@ -197,6 +199,7 @@ class AdminApiController extends Controller {
             'type' => $r->getRecipientType(),
             'value' => $r->getRecipientValue(),
             'onlyMilestones' => $r->getOnlyMilestones(),
+            'birthdateInSubject' => $r->getBirthdateInSubject(),
             'offsets' => array_map(
                 fn ($o) => $o->getDaysBefore(),
                 $this->offsetMapper->findByRecipientId($r->getId())

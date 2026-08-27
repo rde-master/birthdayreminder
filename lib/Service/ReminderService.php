@@ -217,7 +217,7 @@ final class ReminderService {
                 // silently and permanently dropping the reminder for the failed address.
                 $allSucceeded = true;
                 foreach ($emails as $email) {
-                    if (!$this->mailService->sendReminder($email, $member, $daysBefore, $match['targetDate'], $match['age'], $giftText)) {
+                    if (!$this->mailService->sendReminder($email, $member, $daysBefore, $match['targetDate'], $match['age'], $giftText, $recipient->getBirthdateInSubject())) {
                         $allSucceeded = false;
                         $this->logger->error('birthdayreminder: reminder mail delivery failed', [
                             'contactUid' => $member->uid,

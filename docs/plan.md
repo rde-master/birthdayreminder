@@ -67,7 +67,7 @@ Eine Beispiel-CSV liegt unter [docs/beispiel-mitglieder-import.csv](beispiel-mit
 `MailService` nutzt bewusst **reinen Klartext** (`IMessage::setPlainBody()`) statt einer HTML-Vorlage — ein früherer Versuch mit `OCP\Mail\IEMailTemplate` hinterließ auch ohne Header/Footer-Aufruf noch sichtbares HTML-Tabellen-Gerüst (Logo, Leerbereiche), das sich über die Vorlagen-API nicht vollständig entfernen ließ.
 
 - Absender-Anzeigename fest auf „Geburtstagserinnerung" gesetzt (`Util::getDefaultEmailAddress('no-reply')` für die Adresse selbst, damit `mail_from_address`/`mail_domain` weiterhin respektiert werden — nur der Anzeigename weicht vom Instanz-Theming-Namen ab).
-- Erinnerungs-Mail (Betreff **und** Text) nennt Geburtsdatum, Wochentag (`lib/Service/GermanDate.php`, reine Wochentag-Übersetzung ohne intl-Abhängigkeit) und Alter; ist kein Geburtsjahr hinterlegt, steht explizit „Alter unbekannt" statt es wegzulassen.
+- Erinnerungs-Mail-**Text** nennt Geburtsdatum, Wochentag (`lib/Service/GermanDate.php`, reine Wochentag-Übersetzung ohne intl-Abhängigkeit) und Alter; ist kein Geburtsjahr hinterlegt, steht explizit „Alter unbekannt" statt es wegzulassen. Der **Betreff** nennt standardmäßig nur das Alter (`MailService::reminderSubject()`); pro Empfänger lässt sich `Recipient::birthdateInSubject` (Admin-UI: Checkbox „Geburtsdatum im Betreff" unter dem Umfang-Dropdown, Default aus, Spalte via Migration `Version1030Date20260827190000`) zuschalten, dann wird `targetDate->format('d.m.')` an den Alters-Teil angehängt.
 - Platzhalter für die admin-editierbare Glückwunsch-Vorlage: `{name}`, `{vorname}`, `{alter}`, `{datum}`, `{wochentag}`.
 
 ## Mitgliederseite als Sidebar-Navigation mit Übersicht/Diagrammen
@@ -111,6 +111,7 @@ Damit ein doppelt laufender Job (Webcron-Doppelauslösung, manueller `occ`-Aufru
 | recipient_type | STRING(16) | `user` \| `group` \| `email` |
 | recipient_value | STRING(255) | NC-User-ID / Gruppen-ID / E-Mail |
 | only_milestones | BOOLEAN, default false | true = nur Erinnerungen zu runden Geburtstagen |
+| birthdate_in_subject | BOOLEAN, default false | true = Geburtsdatum zusätzlich im Betreff der Erinnerungs-Mail |
 | created_at | INTEGER | |
 
 Unique-Index auf `(recipient_type, recipient_value)`.

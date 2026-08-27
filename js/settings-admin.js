@@ -125,6 +125,17 @@
 		return select;
 	}
 
+	// ---- Reusable: "Geburtsdatum im Betreff" checkbox (goes under Umfang) ----
+
+	function createBirthdateInSubjectCheckbox(checked) {
+		var checkbox = el('input', { type: 'checkbox' });
+		checkbox.checked = !!checked;
+		var label = el('label', { class: 'birthdayreminder-checkbox-label' }, [
+			checkbox, document.createTextNode(' ' + t('Geburtsdatum im Betreff')),
+		]);
+		return { node: label, checkbox: checkbox };
+	}
+
 	// ---- Recipients -----------------------------------------------------
 
 	var RECIPIENT_TYPE_LABELS = {
@@ -157,6 +168,7 @@
 		var valueInput = el('input', { type: 'text', class: 'birthdayreminder-value-input', placeholder: t('NC-Benutzer-ID / Gruppen-ID / E-Mail') });
 		var newOffsetEditor = createOffsetEditor([30, 14, 2, 1, 0]);
 		var newMilestoneSelect = createMilestoneSelect(false);
+		var newBirthdateCheckbox = createBirthdateInSubjectCheckbox(false);
 		var addButton = el('button', { type: 'button', class: 'button primary', text: t('Hinzufügen') });
 
 		function load() {
@@ -185,6 +197,7 @@
 			recipients.forEach(function (r) {
 				var offsetEditor = createOffsetEditor(r.offsets);
 				var milestoneSelect = createMilestoneSelect(r.onlyMilestones);
+				var birthdateCheckbox = createBirthdateInSubjectCheckbox(r.birthdateInSubject);
 
 				var saveRowButton = el('button', { type: 'button', class: 'button', text: t('Speichern') });
 				saveRowButton.addEventListener('click', function () {
@@ -193,6 +206,7 @@
 						type: r.type,
 						value: r.value,
 						onlyMilestones: milestoneSelect.value === 'milestones',
+						birthdateInSubject: birthdateCheckbox.checkbox.checked,
 						offsets: offsetEditor.getOffsets(),
 					}).then(load).catch(showError);
 				});
@@ -206,7 +220,7 @@
 					el('td', { text: RECIPIENT_TYPE_LABELS[r.type] || r.type }),
 					el('td', { text: r.value }),
 					el('td', {}, [offsetEditor.node]),
-					el('td', {}, [milestoneSelect]),
+					el('td', {}, [milestoneSelect, birthdateCheckbox.node]),
 					el('td', { class: 'birthdayreminder-actions' }, [saveRowButton, deleteButton]),
 				]));
 			});
@@ -222,6 +236,7 @@
 				type: typeSelect.value,
 				value: value,
 				onlyMilestones: newMilestoneSelect.value === 'milestones',
+				birthdateInSubject: newBirthdateCheckbox.checkbox.checked,
 				offsets: newOffsetEditor.getOffsets(),
 			}).then(function () {
 				valueInput.value = '';
@@ -238,7 +253,7 @@
 			el('div', {}, [el('label', { class: 'birthdayreminder-field-label', text: t('Typ') }), typeSelect]),
 			el('div', {}, [el('label', { class: 'birthdayreminder-field-label', text: t('Wert') }), valueInput]),
 			el('div', {}, [el('label', { class: 'birthdayreminder-field-label', text: t('Vorlaufzeiten') }), newOffsetEditor.node]),
-			el('div', {}, [el('label', { class: 'birthdayreminder-field-label', text: t('Umfang') }), newMilestoneSelect]),
+			el('div', {}, [el('label', { class: 'birthdayreminder-field-label', text: t('Umfang') }), newMilestoneSelect, newBirthdateCheckbox.node]),
 		]));
 		addPanel.appendChild(el('div', { class: 'birthdayreminder-row' }, [addButton, addStatus]));
 		wrap.appendChild(addPanel);
