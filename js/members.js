@@ -730,12 +730,61 @@
 		return { reload: loadLog };
 	}
 
+	// ---- Geschenke (read-only - editing stays on the Admin-Einstellungsseite) ----
+
+	function renderGifts(root) {
+		var wrap = section(t('Geschenke'));
+		wrap.appendChild(el('p', {
+			text: t('Geschenkvorschläge für runde Geburtstage - nur zur Ansicht. Bearbeitet werden sie auf der Admin-Einstellungsseite.'),
+		}));
+
+		var contentWrap = el('div');
+
+		function renderTable(gifts) {
+			contentWrap.innerHTML = '';
+			if (gifts.length === 0) {
+				contentWrap.appendChild(el('p', { class: 'birthdayreminder-status', text: t('Noch keine runden Geburtstage mit Geschenkvorschlag hinterlegt.') }));
+				return;
+			}
+			var tableWrap = el('div', { class: 'birthdayreminder-table-wrap' });
+			var table = el('table', { class: 'birthdayreminder-table birthdayreminder-gifts-table' });
+			table.appendChild(el('tr', {}, [
+				el('th', { text: t('Alter') }),
+				el('th', { text: t('Geschenkvorschlag') }),
+			]));
+			gifts.forEach(function (g) {
+				table.appendChild(el('tr', {}, [
+					el('td', { text: String(g.age) }),
+					el('td', { text: g.giftText }),
+				]));
+			});
+			tableWrap.appendChild(table);
+			contentWrap.appendChild(tableWrap);
+		}
+
+		function load() {
+			contentWrap.innerHTML = '';
+			contentWrap.appendChild(el('p', { class: 'birthdayreminder-status', text: t('Lade …') }));
+			api('GET', '/admin/gifts').then(function (gifts) {
+				renderTable(gifts);
+			}).catch(function (err) {
+				contentWrap.innerHTML = '';
+				contentWrap.appendChild(el('p', { class: 'birthdayreminder-status', text: String(err.message || err) }));
+			});
+		}
+
+		wrap.appendChild(contentWrap);
+		root.appendChild(wrap);
+		return { reload: load };
+	}
+
 	// ---- Layout: left sidebar (nav + settings links) + content area -----
 
 	var NAV_ITEMS = [
 		{ key: 'overview', label: t('Übersicht') },
 		{ key: 'members', label: t('Mitgliederliste') },
 		{ key: 'import', label: t('CSV-Import') },
+		{ key: 'gifts', label: t('Geschenke') },
 		{ key: 'logs', label: t('Logs') },
 	];
 
@@ -770,6 +819,7 @@
 			overview: el('div', { class: 'birthdayreminder-panel' }),
 			members: el('div', { class: 'birthdayreminder-panel' }),
 			import: el('div', { class: 'birthdayreminder-panel' }),
+			gifts: el('div', { class: 'birthdayreminder-panel' }),
 			logs: el('div', { class: 'birthdayreminder-panel' }),
 		};
 		Object.keys(panels).forEach(function (key) {
@@ -780,6 +830,7 @@
 		var overviewHandle = renderOverview(panels.overview);
 		var membersHandle = renderMembersList(panels.members);
 		renderImport(panels.import);
+		var giftsHandle = renderGifts(panels.gifts);
 		var logsHandle = renderSendLog(panels.logs);
 
 		var loadedOnce = {};
@@ -799,6 +850,9 @@
 			} else if (key === 'members' && !loadedOnce.members) {
 				loadedOnce.members = true;
 				membersHandle.reload();
+			} else if (key === 'gifts' && !loadedOnce.gifts) {
+				loadedOnce.gifts = true;
+				giftsHandle.reload();
 			} else if (key === 'logs' && !loadedOnce.logs) {
 				loadedOnce.logs = true;
 				logsHandle.reload();

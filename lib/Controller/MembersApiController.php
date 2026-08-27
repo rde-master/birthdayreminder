@@ -7,6 +7,8 @@ namespace OCA\BirthdayReminder\Controller;
 use DateTimeImmutable;
 use OCA\BirthdayReminder\Db\Member;
 use OCA\BirthdayReminder\Db\MemberMapper;
+use OCA\BirthdayReminder\Db\Milestone;
+use OCA\BirthdayReminder\Db\MilestoneMapper;
 use OCA\BirthdayReminder\Db\ReminderLog;
 use OCA\BirthdayReminder\Db\ReminderLogMapper;
 use OCA\BirthdayReminder\Service\CsvImportService;
@@ -30,6 +32,7 @@ class MembersApiController extends Controller {
         private ReminderLogMapper $reminderLogMapper,
         private ReminderService $reminderService,
         private ReminderCalculator $calculator,
+        private MilestoneMapper $milestoneMapper,
     ) {
         parent::__construct($appName, $request);
     }
@@ -196,6 +199,20 @@ class MembersApiController extends Controller {
                 'sentAt' => $log->getSentAt(),
             ];
         }, $logs));
+    }
+
+    /**
+     * Read-only view of the milestone gift suggestions for the "Geschenke"
+     * page - editing stays exclusive to the Admin-Einstellungen
+     * (AdminApiController::saveMilestone/deleteMilestone, gated by the
+     * stricter AdminSettings delegation).
+     */
+    #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
+    public function getGifts(): JSONResponse {
+        return new JSONResponse(array_map(
+            fn (Milestone $m) => ['age' => $m->getAge(), 'giftText' => $m->getGiftText()],
+            $this->milestoneMapper->findAll()
+        ));
     }
 
     private function serializeMember(Member $m): array {

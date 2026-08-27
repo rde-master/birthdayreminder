@@ -12,6 +12,7 @@ return [
         ['name' => 'membersApi#importMembers', 'url' => '/admin/members/import', 'verb' => 'POST'],
         ['name' => 'membersApi#getOverview', 'url' => '/admin/overview', 'verb' => 'GET'],
         ['name' => 'membersApi#getSendLog', 'url' => '/admin/send-log', 'verb' => 'GET'],
+        ['name' => 'membersApi#getGifts', 'url' => '/admin/gifts', 'verb' => 'GET'],
 
         ['name' => 'adminApi#getRecipients', 'url' => '/admin/recipients', 'verb' => 'GET'],
         ['name' => 'adminApi#saveRecipient', 'url' => '/admin/recipients', 'verb' => 'POST'],

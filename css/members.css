@@ -258,3 +258,13 @@
 .birthdayreminder-log-table td:nth-child(4) { width: 10%; } /* Bezugsjahr */
 .birthdayreminder-log-table th:nth-child(5),
 .birthdayreminder-log-table td:nth-child(5) { width: 25%; } /* Gesendet am */
+
+/* Geschenke: 2 columns, read-only. */
+.birthdayreminder-gifts-table {
+	min-width: 30em;
+}
+
+.birthdayreminder-gifts-table th:nth-child(1),
+.birthdayreminder-gifts-table td:nth-child(1) { width: 20%; } /* Alter */
+.birthdayreminder-gifts-table th:nth-child(2),
+.birthdayreminder-gifts-table td:nth-child(2) { width: 80%; } /* Geschenkvorschlag */
