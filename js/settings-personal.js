@@ -125,7 +125,7 @@
 
 		var wrap = el('div', { class: 'birthdayreminder-section' });
 		wrap.appendChild(el('h3', { text: t('Geburtstagserinnerung') }));
-		wrap.appendChild(el('p', { text: t('Lege fest, wann du per E-Mail an Geburtstage von Vereinsmitgliedern erinnert werden möchtest.') }));
+		wrap.appendChild(el('p', { text: t('Lege fest, wann du per E-Mail an Geburtstage von Mitgliedern erinnert werden möchtest.') }));
 		root.appendChild(wrap);
 
 		var loadingNote = el('span', { class: 'birthdayreminder-status', text: t('Lade …') });
@@ -155,7 +155,7 @@
 
 			wrap.appendChild(el('label', { class: 'birthdayreminder-field-label', text: t('Umfang') }));
 			wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [milestoneSelect]));
-			wrap.appendChild(el('p', { class: 'birthdayreminder-hint', text: t('"Nur runde Geburtstage" beschränkt die Erinnerung auf Jubiläumsalter, die der Verein festgelegt hat (z.B. 18, 30, 50).') }));
+			wrap.appendChild(el('p', { class: 'birthdayreminder-hint', text: t('"Nur runde Geburtstage" beschränkt die Erinnerung auf die in den Admin-Einstellungen hinterlegten Jubiläumsalter (z.B. 18, 30, 50).') }));
 			wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [saveButton, status]));
 		}).catch(function (err) {
 			loadingNote.textContent = String(err.message || err);

@@ -11,8 +11,9 @@ use OCP\Util;
 
 /**
  * Admin-delegatable settings page: a real Nextcloud admin can grant a
- * specific group (e.g. "Vorstand") access to this page via Settings ->
- * Administration -> Delegation, without making them full instance admins.
+ * specific group access to this page via Settings -> Administration ->
+ * Delegation, without making them full instance admins. Delegated here to
+ * the "Geburtstagserinnerung Admin" group (see Application::GROUP_ADMIN).
  */
 class AdminSettings implements IDelegatedSettings {
     public function getForm(): TemplateResponse {

@@ -1,6 +1,6 @@
 {
-    "name": "verein/birthdayreminder",
-    "description": "Geburtstagserinnerung fuer Vereinsmitglieder",
+    "name": "rde-master/birthdayreminder",
+    "description": "Nextcloud app that sends birthday reminder e-mails for a member registry",
     "license": "AGPL-3.0-or-later",
     "autoload": {
         "psr-4": {

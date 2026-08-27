@@ -442,7 +442,7 @@
 	function renderMembersLink(root) {
 		var wrap = section(t('Mitgliederregister'));
 		wrap.appendChild(el('p', {
-			text: t('Die Vereinsmitglieder (Vorname, Nachname, Geburtsdatum, E-Mail) werden auf der eigenen Mitgliederseite gepflegt - dort auch der CSV-Import.'),
+			text: t('Die Mitglieder (Vorname, Nachname, Geburtsdatum, E-Mail) werden auf der eigenen Mitgliederseite gepflegt - dort auch Import/Export, Geschenke und Logs.'),
 		}));
 		var link = el('a', { class: 'button primary', href: OC.generateUrl('/apps/birthdayreminder/'), text: t('Zur Mitgliederseite') });
 		wrap.appendChild(link);

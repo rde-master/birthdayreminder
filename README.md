@@ -1,6 +1,6 @@
 # Geburtstagserinnerung (birthdayreminder)
 
-Nextcloud-App für Vereine: verwaltet die Vereinsmitglieder in einem eigenen Mitgliederregister und verschickt
+Nextcloud-App: verwaltet die Mitglieder einer Gruppe oder Organisation in einem eigenen Mitgliederregister und verschickt
 
 - **Erinnerungs-Mails an Verantwortliche** zu frei konfigurierbaren Vorlaufzeiten (z.B. 30/14/2/1 Tage vorher + am Tag selbst)
 - **eine Glückwunsch-Mail direkt ans Mitglied**, sofern eine E-Mail-Adresse hinterlegt ist
@@ -9,29 +9,26 @@ Nextcloud-App für Vereine: verwaltet die Vereinsmitglieder in einem eigenen Mit
 
 Läuft komplett auf dem Nextcloud-Server selbst (eigener Background-Job, nutzt den bereits konfigurierten Mailer) — kein externes Skript, kein separater Cron-Eintrag, kein Node/Build-Schritt auf dem Server nötig.
 
-Die Mitgliederdaten (Vorname, Nachname, Geburtsdatum, E-Mail, Deaktiviert-Schalter, Bemerkung) liegen in einem **eigenen Mitgliederregister** der App — nicht in den Nextcloud-Kontakten. Das Register hat eine eigene Seite in der Nextcloud-Menüleiste, inklusive **CSV-Import** mit Spalten-Zuordnung, der neue Mitglieder anlegt, geänderte aktualisiert und beim Import fehlende automatisch deaktiviert.
+Die Mitgliederdaten (Vorname, Nachname, Geburtsdatum, E-Mail, Deaktiviert-Schalter, Bemerkung) liegen in einem **eigenen Mitgliederregister** der App — nicht in den Nextcloud-Kontakten, auch wenn ein Import aus bzw. Export in die eigenen Kontakte möglich ist (siehe unten). Das Register hat eine eigene Seite in der Nextcloud-Menüleiste.
 
-## Status
+## Funktionsübersicht
 
-| Meilenstein | Beschreibung | Status |
-|---|---|---|
-| M1 | Terminberechnung | ✅ fertig, verifiziert |
-| M2 | Persistenz + Erinnerungs-Mails | ✅ fertig, verifiziert |
-| M3 | Glückwunsch-Mail ans Mitglied | ✅ fertig, verifiziert |
-| M4 | Admin-Einstellungsseite (Gruppen-Delegation) | ✅ fertig, verifiziert |
-| M4b | Persönliche Einstellungsseite | ✅ fertig, verifiziert |
-| M5 | Dashboard-Widget | ✅ fertig, verifiziert |
-| M6 | Deploy auf die echte Vereins-Instanz | ⏳ offen |
-| M7 | Eigenes Mitgliederregister + CSV-Import (löst das Nextcloud-Adressbuch als Datenquelle ab) | ✅ fertig, verifiziert |
-| M8 | Konfigurierbare tägliche Prüfzeit, manueller Sofort-Versand, einsehbares/löschbares Versand-Log | ✅ fertig, verifiziert |
-| M9 | Mitgliederseite als Sidebar-Navigation (Übersicht mit Diagrammen/Mitgliederliste/CSV-Import/Logs); feste Zugriffsgruppen statt frei wählbarer Gruppe | ✅ fertig, verifiziert |
-
-„Verifiziert" heißt: Ende-zu-Ende live gegen eine echte Nextcloud-34-Testinstanz getestet — siehe [docs/plan.md](docs/plan.md) für die Details und den Architektur-Wechsel weg vom Adressbuch.
+- **Mitgliederseite** mit eigenem Icon in der Nextcloud-Menüleiste, gegliedert in Übersicht, Mitgliederliste, Import/Export, Geschenke und Logs
+- **Übersicht**: anstehende Geburtstage in drei Zeiträumen (heute / nächste 7 Tage / nächste 30 Tage) sowie ein Kreisdiagramm „Geburtstage pro Monat" und ein Balkendiagramm „Altersstruktur"
+- **Import/Export**: CSV-Import mit Spaltenzuordnung (inkl. Download-Vorlage) und CSV-Export der Mitgliederliste; Import aus und Export in die eigenen Nextcloud-Kontakte, Abgleich primär per E-Mail-Adresse, damit keine doppelten Einträge entstehen
+- **Geschenke**: schreibgeschützte Übersicht der Geschenkvorschläge zu runden Geburtstagen (Bearbeitung bleibt der Admin-Seite vorbehalten)
+- **Versand-Log**: Protokoll der letzten 200 tatsächlich verschickten Mails, als CSV exportierbar, vom Admin löschbar
+- **Konfigurierbare Vorlaufzeiten** pro Empfänger (Nextcloud-Nutzer, Gruppe oder feste E-Mail-Adresse) — zentral über die Admin-Seite oder von jedem Nutzer selbst über die persönlichen Einstellungen
+- **Runde Geburtstage** mit admin-konfigurierbarem Geschenkvorschlag, der automatisch in die Erinnerungs-Mail übernommen wird
+- **Admin-editierbare Glückwunsch-Mail-Vorlage** mit Platzhaltern (Name, Alter, Datum, Wochentag)
+- **Konfigurierbare tägliche Prüfzeit** sowie ein manueller Sofort-Versand für Erinnerungen und Glückwünsche, unabhängig voneinander auslösbar
+- **Dashboard-Widget** mit den nächsten anstehenden Geburtstagen
+- **Zwei feste Zugriffsgruppen**, unabhängig von vollen Nextcloud-Systemadmin-Rechten (siehe [Zugriffsrechte](#zugriffsrechte))
 
 ## Voraussetzungen
 
-- Nextcloud ≥ 28 (getestet gegen 34.0.1)
-- SSH-Zugriff (für `occ`-Befehle bei Installation/Konfiguration)
+- Nextcloud ≥ 28
+- SSH- bzw. `occ`-Zugriff für Installation und Konfiguration
 
 ## Installation
 
@@ -47,13 +44,11 @@ Die App registriert sich automatisch im vorhandenen Nextcloud-Cron (`cron.php`) 
 
 ## Einrichtung
 
-1. **Mitgliederregister** (eigenes Icon oben in der Nextcloud-Menüleiste, sichtbar für berechtigte Nutzer — siehe [Zugriffsrechte](#zugriffsrechte)) öffnen: dort **Übersicht** (anstehende Geburtstage + Diagramme), **Mitgliederliste** (Erfassen/Bearbeiten), **CSV-Import** und **Logs** über die linke Seitenleiste
+1. **Mitgliederregister** (eigenes Icon oben in der Nextcloud-Menüleiste, sichtbar für berechtigte Nutzer — siehe [Zugriffsrechte](#zugriffsrechte)) öffnen: dort **Übersicht**, **Mitgliederliste**, **Import/Export**, **Geschenke** und **Logs** über die linke Seitenleiste
 2. **Einstellungen → Verwaltung → Geburtstagserinnerung** öffnen (als Nextcloud-Admin oder Mitglied der Gruppe „Geburtstagserinnerung Admin"): Empfänger anlegen (Nextcloud-Nutzer, Gruppe oder feste E-Mail-Adresse) mit eigenen Vorlaufzeiten
 3. Optional: runde Geburtstage mit Geschenkvorschlag hinterlegen
 4. Optional: Text der Glückwunsch-Mail anpassen (Platzhalter `{name}`, `{vorname}`, `{alter}`, `{datum}`, `{wochentag}`)
 5. Im Bereich „Zeitplan & manueller Versand": Uhrzeit für die tägliche Prüfung einstellen (Standard 08:00). Dort auch zwei Buttons, um Erinnerungen bzw. Glückwünsche sofort manuell auszulösen (respektiert dieselbe Versand-Historie wie der automatische Lauf, also keine doppelten Mails), sowie ein Button zum vollständigen Löschen des Versand-Logs (Warnung: hebt die Duplikat-Sperre für den Tag auf)
-
-Das **Versand-Log** (Mitgliederseite, Bereich „Logs") zeigt die letzten 200 tatsächlich verschickten Mails mit Mitgliedsname, Art, Vorlaufzeit, Bezugsjahr und Zeitpunkt — nützlich, um nachzuvollziehen, warum an einem Tag (nicht) verschickt wurde.
 
 Jeder Nextcloud-Nutzer kann außerdem unter **Einstellungen → Geburtstagserinnerung** selbst festlegen, zu welchen Vorlaufzeiten (bzw. nur bei runden Geburtstagen) er erinnert werden möchte.
 
@@ -61,14 +56,14 @@ Jeder Nextcloud-Nutzer kann außerdem unter **Einstellungen → Geburtstagserinn
 
 Zwei feste Nextcloud-Gruppen steuern den Zugriff — beim ersten `app:enable` automatisch angelegt (leer, Mitglieder selbst über Einstellungen → Benutzer hinzufügen):
 
-| Gruppe | Mitgliederregister (Übersicht/Liste/CSV-Import/Logs) | Admin-Einstellungen (Empfänger/Meilensteine/Mail-Vorlage/Zeitplan) |
+| Gruppe | Mitgliederregister (Übersicht/Liste/Import-Export/Geschenke/Logs) | Admin-Einstellungen (Empfänger/Meilensteine/Mail-Vorlage/Zeitplan) |
 |---|---|---|
 | `Geburtstagserinnerung Verantwortliche` | ✅ | ❌ |
 | `Geburtstagserinnerung Admin` | ✅ | ✅ |
 | echte Nextcloud-Systemadmins | ✅ | ✅ |
 | alle anderen Nutzer | ❌ (auch kein Menüeintrag sichtbar) | ❌ |
 
-Die Gruppen werden zwar automatisch angelegt, die eigentliche Berechtigung muss aber einmalig per SSH zugewiesen werden:
+Die Gruppen werden zwar automatisch angelegt, die eigentliche Berechtigung muss aber einmalig zugewiesen werden:
 
 ```bash
 php occ admin-delegation:add "OCA\BirthdayReminder\Settings\MemberAreaAccess" "Geburtstagserinnerung Verantwortliche"
@@ -76,18 +71,23 @@ php occ admin-delegation:add "OCA\BirthdayReminder\Settings\MemberAreaAccess" "G
 php occ admin-delegation:add "OCA\BirthdayReminder\Settings\AdminSettings" "Geburtstagserinnerung Admin"
 ```
 
-### CSV-Import
+### Import/Export
 
-Auf der Mitgliederseite: CSV-Datei auswählen, Spalten den Feldern **Vorname**, **Nachname**, **Geburtsdatum** (Pflicht) und **E-Mail** (optional) zuordnen, dann importieren. Eine Beispieldatei liegt unter [docs/beispiel-mitglieder-import.csv](docs/beispiel-mitglieder-import.csv) (Semikolon-getrennt, Geburtsdatum als `TT.MM.JJJJ`; `TT.MM.` ohne Punkt am Ende geht auch, wenn kein Jahr bekannt ist).
+Auf der Mitgliederseite unter **Import/Export**:
 
-Abgleich-Logik pro Import (Namensvergleich Vorname+Nachname, ohne Berücksichtigung von Groß-/Kleinschreibung):
+- **CSV-Import**: Datei auswählen, Spalten den Feldern **Vorname**, **Nachname**, **Geburtsdatum** (Pflicht) und **E-Mail** (optional) zuordnen, dann importieren. Über „Vorlage herunterladen" gibt es eine leere CSV mit korrektem Spaltenkopf und zwei Beispielzeilen; alternativ liegt eine Beispieldatei unter [docs/beispiel-mitglieder-import.csv](docs/beispiel-mitglieder-import.csv) (Semikolon-getrennt, Geburtsdatum als `TT.MM.JJJJ`; `TT.MM.` ohne Punkt am Ende geht auch, wenn kein Jahr bekannt ist).
+- **CSV-Export**: lädt die komplette Mitgliederliste (inkl. deaktivierter Mitglieder) im selben Format herunter.
+- **Import aus Kontakten**: liest alle eigenen Nextcloud-Adressbücher (außer dem Systemadressbuch) und übernimmt Name, Geburtsdatum und E-Mail-Adresse.
+- **Export in Kontakte**: schreibt alle aktiven Mitglieder in das erste beschreibbare, eigene Adressbuch.
 
-- **neuer Name** → Mitglied wird angelegt
-- **bekannter Name, Daten geändert** → Mitglied wird aktualisiert
-- **bekannter Name, keine Änderung** → nichts passiert
-- **bekannter Name fehlt in der CSV** → Mitglied wird deaktiviert, Bemerkung „Deaktiviert da bei Import nicht mehr vorhanden" wird ergänzt
+Abgleich-Logik bei jedem Import (CSV wie Kontakte) — zuerst per **E-Mail-Adresse** (damit ein geänderter Anzeigename keine doppelten Einträge erzeugt), sonst per Namensvergleich (Vorname+Nachname, ohne Berücksichtigung von Groß-/Kleinschreibung):
 
-Ein bereits deaktiviertes Mitglied wird **nicht automatisch wieder aktiviert**, nur weil es wieder in der CSV auftaucht — das bleibt bewusst eine manuelle Entscheidung auf der Mitgliederseite.
+- **neuer Eintrag** → Mitglied wird angelegt
+- **bekannter Eintrag, Daten geändert** → Mitglied wird aktualisiert
+- **bekannter Eintrag, keine Änderung** → nichts passiert
+- **bekannter Eintrag fehlt in der Quelle** → Mitglied wird deaktiviert, Bemerkung „Deaktiviert da bei Import nicht mehr vorhanden" wird ergänzt
+
+Ein bereits deaktiviertes Mitglied wird **nicht automatisch wieder aktiviert**, nur weil es wieder auftaucht — das bleibt bewusst eine manuelle Entscheidung auf der Mitgliederseite.
 
 ### Mail-Format
 
@@ -102,7 +102,7 @@ composer install     # PHPUnit für die lokalen Tests
 vendor/bin/phpunit    # reine Logik (Terminberechnung, CSV-/Datums-Parsing, Import-Abgleich) - läuft ohne Nextcloud-Runtime
 ```
 
-Es gibt keinen Frontend-Build-Schritt: `js/` und `css/` sind handgeschriebenes Vanilla JS/CSS, direkt einsatzbereit (bewusste Abweichung vom ursprünglichen Plan, der Vue/Webpack vorsah — siehe [docs/plan.md](docs/plan.md)).
+Es gibt keinen Frontend-Build-Schritt: `js/` und `css/` sind handgeschriebenes Vanilla JS/CSS, direkt einsatzbereit.
 
 **Wichtig bei Änderungen an `js/`/`css/`:** Nextcloud hängt an jede Datei einen Cache-Buster (`?v=...`) an, der aus der `<version>` in `appinfo/info.xml` berechnet wird — nicht aus dem Dateiinhalt. Nach jeder JS/CSS-Änderung muss die Version dort erhöht werden, sonst liefern Browser die alte, gecachte Datei aus.
 
@@ -116,9 +116,11 @@ lib/
   BackgroundJob/  DailyReminderJob.php (stündliche Prüfung, Versand einmal täglich zur eingestellten Uhrzeit)
   Model/          Member.php (Wertobjekt für die Terminlogik)
   Db/             Member (Mitgliederregister) + Recipient/Offset/Milestone/ReminderLog + Mapper
+  Contacts/       ContactsGateway.php (Import aus/Export in die eigenen Nextcloud-Kontakte, ueber OCP\Contacts\IManager)
   Service/        ReminderCalculator (reine Terminlogik inkl. Alters-Bucketing), ReminderService (Orchestrierung),
                   MailService, RecipientResolver, MailTemplateRenderer, ConfigService,
-                  CsvParser/MemberSyncPlanner (reine CSV-Import-Logik), CsvImportService (Orchestrierung),
+                  CsvParser/MemberSyncPlanner (reine CSV-/Kontakte-Import-Logik), CsvImportService (Orchestrierung),
+                  CsvExporter (reine CSV-Serialisierung), VCardDate (reine BDAY-Formatkonvertierung),
                   ScheduleGate (reine Logik: "ist die eingestellte Tageszeit erreicht?"),
                   GermanDate (reine Logik: deutsche Wochentagsnamen)
   Controller/      PageController (Mitgliederseite), MembersApiController, AdminApiController, PersonalApiController
@@ -129,11 +131,11 @@ lib/
   Command/         occ-Befehle für Debug/Verwaltung
 js/, css/, templates/   Vanilla-JS-Seiten (Mitgliederregister, Einstellungen) - kein Build-Schritt
 tests/Unit/             PHPUnit-Tests für die reine Logik
-docs/plan.md            Architektur-/Umsetzungsplan inkl. Architektur-Wechsel weg vom Adressbuch
+docs/plan.md            Architektur-Hintergrund und Entscheidungsgründe
 docs/beispiel-mitglieder-import.csv   Beispieldatei für den CSV-Import
 ```
 
-Details zu Datenmodell, Terminberechnung, Idempotenz, CSV-Import-Logik und Entscheidungsgründen: siehe [docs/plan.md](docs/plan.md).
+Details zu Datenmodell, Terminberechnung, Idempotenz, Import-Logik und Entscheidungsgründen: siehe [docs/plan.md](docs/plan.md).
 
 ## Lizenz
 

@@ -17,7 +17,7 @@ final class ConfigService {
     private const KEY_LAST_RUN_DATE = 'last_run_date';
 
     public const DEFAULT_CONGRATS_SUBJECT = 'Herzlichen Glückwunsch zum Geburtstag, {vorname}!';
-    public const DEFAULT_CONGRATS_BODY = "Liebe/r {vorname},\n\nder gesamte Verein wünscht dir alles Gute zu deinem {alter}. Geburtstag am {datum}!\n\nHerzliche Grüße\nDein Verein";
+    public const DEFAULT_CONGRATS_BODY = "Liebe/r {vorname},\n\nwir wünschen dir alles Gute zu deinem {alter}. Geburtstag am {datum}!\n\nHerzliche Grüße";
     public const DEFAULT_DAILY_RUN_TIME = '08:00';
 
     public function __construct(

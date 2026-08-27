@@ -1,24 +1,24 @@
 # Nextcloud-App "Geburtstagserinnerung" (birthdayreminder)
 
+Dieses Dokument beschreibt die Architektur und die Entscheidungsgründe hinter den einzelnen Bausteinen der App — die Kurzfassung für Nutzer steht in [README.md](../README.md).
+
 ## Kontext
 
-Ein Verein möchte automatisch daran erinnert werden, wenn Mitglieder Geburtstag haben: konfigurierbare Erinnerungs-Mails an Verantwortliche zu frei einstellbaren Vorlaufzeiten (z.B. 30/14/2/1 Tage vorher + am Tag selbst), plus eine Glückwunsch-Mail direkt an das Mitglied. Die Mitgliederdaten (Name, Geburtsdatum, E-Mail) liegen bereits als Kontakte in einem gemeinsamen Nextcloud-Adressbuch. Nextcloud läuft bei all-inkl (Shared/Managed Hosting), SSH-Zugriff ist vorhanden.
+Eine Gruppe oder Organisation möchte automatisch daran erinnert werden, wenn Mitglieder Geburtstag haben: konfigurierbare Erinnerungs-Mails an Verantwortliche zu frei einstellbaren Vorlaufzeiten (z.B. 30/14/2/1 Tage vorher + am Tag selbst), plus eine Glückwunsch-Mail direkt an das Mitglied.
 
-Statt eines externen Skripts mit eigenem Cronjob wird das Ganze als **native Nextcloud-App** gebaut: Sie liest die Kontakte direkt, nutzt Nextclouds eigenen Background-Job-Mechanismus (kein neuer Cron-Eintrag nötig) und den bereits konfigurierten Mailer (kein separates SMTP). Als Bonus gibt es eine Geburtstags-Übersicht als Dashboard-Widget direkt in Nextcloud.
+Statt eines externen Skripts mit eigenem Cronjob läuft das Ganze als **native Nextcloud-App**: sie nutzt Nextclouds eigenen Background-Job-Mechanismus (kein neuer Cron-Eintrag nötig) und den bereits konfigurierten Mailer (kein separates SMTP). Als Bonus gibt es eine Geburtstags-Übersicht als Dashboard-Widget direkt in Nextcloud.
 
-Wer als „Admin für die Geburtstagserinnerung" gilt, wird über eine frei wählbare Nextcloud-Gruppe (z.B. „Vorstand") gesteuert — nicht über volle Nextcloud-Systemadmin-Rechte. Verantwortliche haben eigene Nextcloud-Konten; die Erinnerungs-Mails nutzen deren dort hinterlegte E-Mail-Adresse.
+Wer als „Admin für die Geburtstagserinnerung" gilt, wird über zwei feste Nextcloud-Gruppen gesteuert (siehe „Zugriffsrechte über zwei feste Gruppen" unten) — nicht über volle Nextcloud-Systemadmin-Rechte. Verantwortliche haben eigene Nextcloud-Konten; die Erinnerungs-Mails nutzen deren dort hinterlegte E-Mail-Adresse.
 
 Zusätzlich zur reinen Terminerinnerung: Für **runde Geburtstage** (frei definierbare Jubiläumsalter, z.B. 18/30/50/60/70) kann der Admin je Alter einen Geschenk-Vorschlagstext hinterlegen, der dann in der Erinnerungs-Mail an die Verantwortlichen erscheint. Jeder Empfänger kann für sich wählen, ob er Erinnerungen für *alle* Geburtstage oder nur für die runden bekommen möchte. Die Glückwunsch-Mail ans Mitglied selbst ist vom Admin mit Platzhaltern (Name, Alter, …) frei im Text editierbar; Mitglieder ohne hinterlegte E-Mail-Adresse bekommen diese Mail naturgemäß nicht (die Erinnerungs-Mails an die Verantwortlichen sind davon unabhängig und gehen trotzdem raus).
 
-App-ID: `birthdayreminder`. Ziel-Kompatibilität: Nextcloud ≥ 28 (aktuell genug für moderne APIs wie das Dashboard-Widget ohne eigenes JS, alt genug um auf dem all-inkl-Server sicher vorhanden zu sein).
+App-ID: `birthdayreminder`. Ziel-Kompatibilität: Nextcloud ≥ 28.
 
-> **Hinweis:** Dies ist der ursprünglich abgestimmte Plan (Stand M1-Freigabe). Die tatsächliche Umsetzung wich an zwei Stellen bewusst ab: Statt Vue/Webpack (siehe unten) wurde für die Einstellungsseiten **Vanilla JS ohne Build-Schritt** verwendet, um auf dem Shared-Hosting-Server keine Node-Toolchain zu benötigen; und der ursprünglich als Datenquelle vorgesehene **Nextcloud-Adressbuch-Ansatz wurde nach M6 verworfen** (siehe „Architektur-Wechsel: eigenes Mitgliederregister" direkt unten) zugunsten eines eigenen Mitgliederregisters mit CSV-Import. Den aktuellen Umsetzungsstand beschreibt die [README.md](../README.md) im Projekt-Root.
+## Eigenes Mitgliederregister statt Nextcloud-Adressbuch
 
-## Architektur-Wechsel: eigenes Mitgliederregister statt Nextcloud-Adressbuch
+**Warum:** Die Nextcloud-Contacts-App selbst stellte sich für diesen Zweck als zu unübersichtlich heraus. Der ursprüngliche Ansatz (Kontakte direkt über die CardDAV-Schicht lesen, Adressbuch-Auswahl in den Admin-Einstellungen) wurde daher durch ein **eigenes, app-internes Mitgliederregister** ersetzt, das die App selbst pflegt.
 
-**Warum:** Nach ersten Tests mit der echten Nextcloud-Contacts-App stellte sich diese für den Zweck als zu unübersichtlich heraus. Der ursprüngliche Ansatz (Kontakte lesen über `CardDavBackend`, Adressbuch-Auswahl in den Admin-Einstellungen) wurde daher komplett durch ein **eigenes, app-internes Mitgliederregister** ersetzt. Alles unterhalb von „Kontakte lesen (Adressbuch/BDAY/EMAIL)" und die dortige Datenquellen-Beschreibung ist damit **historisch** — `ContactsGateway` wurde entfernt, `ConfigService::addressbook_owner/addressbook_id` ebenfalls.
-
-**Neues Datenmodell:** Tabelle `oc_birthdayreminder_member` (statt Adressbuch-Zugriff):
+**Datenmodell:** Tabelle `oc_birthdayreminder_member`:
 
 | Spalte | Typ | Hinweis |
 |---|---|---|
@@ -27,109 +27,82 @@ App-ID: `birthdayreminder`. Ziel-Kompatibilität: Nextcloud ≥ 28 (aktuell genu
 | last_name | STRING(255) | Nachname |
 | birth_day | INTEGER | |
 | birth_month | INTEGER | |
-| birth_year | INTEGER, nullable | unbekanntes Geburtsjahr weiterhin unterstützt |
+| birth_year | INTEGER, nullable | unbekanntes Geburtsjahr wird unterstützt |
 | email | STRING(255), nullable | |
 | disabled | BOOLEAN, default false | deaktiviert = keine Mails mehr, weder Erinnerung noch Glückwunsch |
 | remark | TEXT, nullable | „Bemerkung" |
 | created_at / updated_at | INTEGER | |
 
-`ReminderService`/`DebugUpcoming` lesen jetzt über `MemberMapper::findAllActive()` statt über `ContactsGateway`; `MemberMapper::toModelMember()`-Konvertierung baut daraus das bestehende `Model\Member`-Wertobjekt, sodass `ReminderCalculator`, `MailService` etc. unverändert bleiben.
+`ReminderService`/`DebugUpcoming` lesen über `MemberMapper::findAllActive()`; `MemberMapper::toModelMember()`-Konvertierung baut daraus das `Model\Member`-Wertobjekt, das `ReminderCalculator`, `MailService` etc. verwenden.
 
-**Eigene Seite in der Nextcloud-Menüleiste** (`<navigations>` in `info.xml`, `PageController` + `templates/main.php` + `js/members.js`): Mitgliederliste (manuell anlegen/bearbeiten/löschen) plus CSV-Import. Zugriff ist wie die Admin-Einstellungsseite über `#[AuthorizedAdminSetting(settings: AdminSettings::class)]` auf die „Vorstand"-Delegation beschränkt (Mitgliederdaten sind personenbezogen). Von dort aus verlinken Buttons zu den persönlichen Einstellungen und den Admin-Einstellungen.
+**Eigene Seite in der Nextcloud-Menüleiste** (`PageController` + `templates/main.php` + `js/members.js`, dynamisch registriert — siehe „Zugriffsrechte" unten): Übersicht, Mitgliederliste, Import/Export, Geschenke, Logs.
 
-**CSV-Import** (`lib/Service/CsvParser.php`, `MemberSyncPlanner.php`, `CsvImportService.php`):
-- Spalten-Zuordnung passiert **client-seitig**: die CSV wird im Browser per `FileReader` gelesen, Kopfzeile geparst, der Admin ordnet die Spalten den Feldern Vorname/Nachname/Geburtsdatum (Pflicht) und E-Mail (optional) per Dropdown zu. Erst der fertige Import-Request (CSV-Inhalt + Mapping) geht ans Backend — kein mehrstufiger Server-Upload/Session-Zustand nötig.
-- Abgleich anhand von Vorname+Nachname (Groß-/Kleinschreibung wird ignoriert): neuer Name → anlegen; bekannter Name mit geänderten Werten → aktualisieren; bekannter Name unverändert → nichts tun; bekannter Name fehlt in der CSV → deaktivieren, mit Bemerkung „Deaktiviert da bei Import nicht mehr vorhanden" (wird an eine vorhandene Bemerkung angehängt statt sie zu überschreiben, und nicht doppelt eingetragen bei wiederholtem Import).
-- **Bewusst konservativ:** Ein bereits deaktiviertes Mitglied wird beim Import **nie automatisch wieder aktiviert**, selbst wenn der Name wieder in der CSV auftaucht — das bleibt eine manuelle Entscheidung auf der Mitgliederseite, damit ein Import nicht versehentlich eine bewusste manuelle Deaktivierung aufhebt.
+## CSV- und Kontakte-Import
+
+`lib/Service/CsvParser.php`, `MemberSyncPlanner.php`, `CsvImportService.php`, `lib/Contacts/ContactsGateway.php`:
+
+- **CSV**: Spalten-Zuordnung passiert **client-seitig** — die Datei wird im Browser per `FileReader` gelesen, Kopfzeile geparst, der Admin ordnet die Spalten den Feldern Vorname/Nachname/Geburtsdatum (Pflicht) und E-Mail (optional) per Dropdown zu. Erst der fertige Import-Request (Inhalt + Mapping) geht ans Backend.
+- **Kontakte**: `ContactsGateway` liest über die öffentliche `OCP\Contacts\IManager`-API alle eigenen Adressbücher des aktuellen Nutzers (außer dem Systemadressbuch) und wandelt sie in dieselbe Zeilenform um wie der CSV-Import — dadurch teilen sich beide Importwege die komplette Diff/Apply-Logik (`CsvImportService::applyParsedRows()`).
+- **Abgleich-Logik** (`MemberSyncPlanner`, geteilt von beiden Importwegen): primär per **E-Mail-Adresse** (case-insensitive) — die stabilere Identität, verhindert Duplikate auch wenn sich ein Anzeigename geändert hat. Fällt auf Namensvergleich (Vorname+Nachname, ohne Groß-/Kleinschreibung) zurück, wenn keine E-Mail vorhanden ist. Neuer Eintrag → anlegen; bekannter Eintrag mit geänderten Werten → aktualisieren; bekannter Eintrag unverändert → nichts tun; bekannter Eintrag fehlt in der Quelle → deaktivieren, mit Bemerkung „Deaktiviert da bei Import nicht mehr vorhanden" (wird an eine vorhandene Bemerkung angehängt statt sie zu überschreiben, und nicht doppelt eingetragen bei wiederholtem Import).
+- **Bewusst konservativ:** Ein bereits deaktiviertes Mitglied wird beim Import **nie automatisch wieder aktiviert**, selbst wenn es wieder auftaucht — das bleibt eine manuelle Entscheidung auf der Mitgliederseite, damit ein Import nicht versehentlich eine bewusste manuelle Deaktivierung aufhebt.
 - `MemberSyncPlanner::plan()` ist reine, DB-freie Logik (Diffing anhand einfacher Arrays) und dadurch ohne Nextcloud-Runtime testbar; `CsvImportService` lädt den aktuellen Bestand, ruft den Planner auf und wendet den Plan über `MemberMapper` an.
-- Geburtsdatum-Formate: `TT.MM.JJJJ`, `TT.MM.` (kein Jahr bekannt) und ISO `JJJJ-MM-TT`.
+- Geburtsdatum-Formate (CSV): `TT.MM.JJJJ`, `TT.MM.` (kein Jahr bekannt) und ISO `JJJJ-MM-TT`. Für Kontakte übernimmt `VCardDate` die Konvertierung zum/vom vCard-BDAY-Rohformat (`JJJJMMTT` bzw. `--MMTT` ohne Jahr).
+- **Kontakte-Export** (`ContactsGateway::exportMembersToUserContacts()`): schreibt aktive Mitglieder in das erste beschreibbare, nicht-geteilte Adressbuch des Nutzers. Bewusst werden nur flache vCard-Properties gesetzt (FN, BDAY, EMAIL) — `IAddressBook::createOrUpdate()` kann strukturierte Properties wie `N` nicht korrekt setzen (im Sabre\VObject-Quellcode verifiziert: ein Array-Wert wird dort als mehrere Property-Instanzen statt als eine strukturierte behandelt), daher bleibt `N` unbeschrieben. Abgleich bestehender Kontakte ebenfalls primär per E-Mail, sonst per Name.
+- **CSV-Export** (`CsvExporter`, reine Serialisierung): Mitgliederliste und Versand-Log lassen sich als CSV herunterladen; für die Mitgliederliste gibt es zusätzlich eine leere Vorlage mit Beispielzeilen zum direkten Download.
 
 Eine Beispiel-CSV liegt unter [docs/beispiel-mitglieder-import.csv](beispiel-mitglieder-import.csv).
 
-## Erweiterung: Zeitplan, manueller Versand, Versand-Log (M8)
+## Zeitplan, manueller Versand, Versand-Log
 
-**Konfigurierbare tägliche Prüfzeit** (`ConfigService::getDailyRunTime()`, Default 08:00): `DailyReminderJob` (TimedJob) prüft jetzt **stündlich** statt einmal täglich, führt den eigentlichen Versand aber weiterhin nur einmal pro Tag aus. Die Entscheidung "ist die eingestellte Uhrzeit erreicht und wurde heute noch nicht gelaufen?" übernimmt `lib/Service/ScheduleGate.php` — eine reine, DB-freie Klasse (Eingabe: konfigurierte Zeit, aktueller Zeitpunkt, letztes Lauf-Datum), dadurch ohne Nextcloud-Runtime testbar. Nach einem tatsächlichen Lauf wird `last_run_date` (`ConfigService`) auf heute gesetzt.
+**Konfigurierbare tägliche Prüfzeit** (`ConfigService::getDailyRunTime()`, Default 08:00): `DailyReminderJob` (TimedJob) prüft **stündlich** statt einmal täglich, führt den eigentlichen Versand aber weiterhin nur einmal pro Tag aus. Die Entscheidung "ist die eingestellte Uhrzeit erreicht und wurde heute noch nicht gelaufen?" übernimmt `lib/Service/ScheduleGate.php` — eine reine, DB-freie Klasse (Eingabe: konfigurierte Zeit, aktueller Zeitpunkt, letztes Lauf-Datum), dadurch ohne Nextcloud-Runtime testbar. Nach einem tatsächlichen Lauf wird `last_run_date` (`ConfigService`) auf heute gesetzt.
 
-**Manueller Sofort-Versand:** `ReminderService::run()` wurde in `runReminders()` und `runCongrats()` aufgeteilt (gemeinsame `buildContext()`-Berechnung), sodass die Admin-Buttons „Erinnerungen jetzt versenden" / „Glückwünsche jetzt versenden" nur die jeweilige Hälfte auslösen — beide nutzen dieselbe Idempotenz-Log-Tabelle wie der automatische Lauf, ein manueller Trigger kann also nie zu doppelten Mails führen (weder untereinander noch gegenüber dem geplanten Lauf).
+**Manueller Sofort-Versand:** `ReminderService::run()` ist in `runReminders()` und `runCongrats()` aufgeteilt (gemeinsame `buildContext()`-Berechnung), sodass die Admin-Buttons „Erinnerungen jetzt versenden" / „Glückwünsche jetzt versenden" nur die jeweilige Hälfte auslösen — beide nutzen dieselbe Idempotenz-Log-Tabelle wie der automatische Lauf, ein manueller Trigger kann also nie zu doppelten Mails führen (weder untereinander noch gegenüber dem geplanten Lauf).
 
-**Versand-Log einsehbar & löschbar:** `ReminderLogMapper::findRecent()` liefert die letzten 200 Einträge; `MembersApiController::getSendLog()` löst `contact_uid` zu Mitgliedsnamen auf (Fallback „Unbekannt/gelöscht" für inzwischen entfernte Mitglieder). Anzeige auf der Mitgliederseite (`js/members.js`, ein-/ausklappbar, lädt erst bei Klick). Admin-Einstellungsseite hat einen „Log löschen"-Button (`ReminderLogMapper::deleteAll()`) mit Bestätigungsdialog, der explizit auf das Duplikat-Risiko hinweist (Löschen hebt die Idempotenz-Sperre für den restlichen Tag auf).
+**Versand-Log einsehbar, exportierbar & löschbar:** `ReminderLogMapper::findRecent()` liefert die letzten 200 Einträge; `MembersApiController::getSendLog()` löst `contact_uid` zu Mitgliedsnamen auf (Fallback „Unbekannt/gelöscht" für inzwischen entfernte Mitglieder), `exportSendLogCsv()` liefert dieselben Daten als CSV-Download. Admin-Einstellungsseite hat einen „Log löschen"-Button (`ReminderLogMapper::deleteAll()`) mit Bestätigungsdialog, der explizit auf das Duplikat-Risiko hinweist (Löschen hebt die Idempotenz-Sperre für den restlichen Tag auf).
 
-## Erweiterung: Mail-Format (schlichter Klartext statt HTML-Vorlage)
+## Mail-Format: schlichter Klartext
 
-Ursprünglich nutzte `MailService` `OCP\Mail\IEMailTemplate` (siehe unten, "Mailversand"). Nach mehreren Nutzer-Rückmeldungen (großes Logo, Fußzeile, ein verbleibender weißer Leerbereich selbst ohne Header/Footer-Aufruf, da das HTML-Tabellen-Gerüst der Vorlage bestehen bleibt) wurde komplett auf **reinen Klartext** umgestellt:
+`MailService` nutzt bewusst **reinen Klartext** (`IMessage::setPlainBody()`) statt einer HTML-Vorlage — ein früherer Versuch mit `OCP\Mail\IEMailTemplate` hinterließ auch ohne Header/Footer-Aufruf noch sichtbares HTML-Tabellen-Gerüst (Logo, Leerbereiche), das sich über die Vorlagen-API nicht vollständig entfernen ließ.
 
-- `IMessage::setPlainBody()` statt `createEMailTemplate()`/`useTemplate()` — kein HTML-Body mehr.
 - Absender-Anzeigename fest auf „Geburtstagserinnerung" gesetzt (`Util::getDefaultEmailAddress('no-reply')` für die Adresse selbst, damit `mail_from_address`/`mail_domain` weiterhin respektiert werden — nur der Anzeigename weicht vom Instanz-Theming-Namen ab).
-- Da kein HTML mehr gerendert wird, ist das vorherige "`\n` wird im HTML zu Leerzeichen kollabiert"-Problem der Glückwunsch-Vorlage gegenstandslos.
-- Erinnerungs-Mail (Betreff **und** Text) nennt jetzt Geburtsdatum, Wochentag (`lib/Service/GermanDate.php`, reine Wochentag-Übersetzung ohne intl-Abhängigkeit) und Alter; ist kein Geburtsjahr hinterlegt, steht explizit „Alter unbekannt" statt es wegzulassen.
-- Neuer Platzhalter `{wochentag}` für die admin-editierbare Glückwunsch-Vorlage.
+- Erinnerungs-Mail (Betreff **und** Text) nennt Geburtsdatum, Wochentag (`lib/Service/GermanDate.php`, reine Wochentag-Übersetzung ohne intl-Abhängigkeit) und Alter; ist kein Geburtsjahr hinterlegt, steht explizit „Alter unbekannt" statt es wegzulassen.
+- Platzhalter für die admin-editierbare Glückwunsch-Vorlage: `{name}`, `{vorname}`, `{alter}`, `{datum}`, `{wochentag}`.
 
-## Erweiterung: Mitgliederseite als Sidebar-Navigation mit Übersicht/Diagrammen (M9)
+## Mitgliederseite als Sidebar-Navigation mit Übersicht/Diagrammen
 
-Die Mitgliederseite (`js/members.js`) wurde von einer langen Einzelseite auf ein Layout mit linker Seitenleiste umgebaut: oben ein Link zu „Persönliche Einstellungen", darunter die Navigation (Übersicht/Mitgliederliste/CSV-Import/Logs), unten ein Link zu „Admin-Einstellungen". Rechts daneben ein Content-Bereich, der das jeweils aktive Panel zeigt (`renderLayout()`/`activate()`); Mitgliederliste und Logs laden ihre Daten weiterhin erst beim ersten Aufruf des jeweiligen Panels.
+Die Mitgliederseite (`js/members.js`) ist als Layout mit linker Seitenleiste aufgebaut: oben ein Link zu „Persönliche Einstellungen", darunter die Navigation (Übersicht/Mitgliederliste/Import-Export/Geschenke/Logs), unten ein Link zu „Admin-Einstellungen". Rechts daneben ein Content-Bereich, der das jeweils aktive Panel zeigt (`renderLayout()`/`activate()`); Mitgliederliste und Logs laden ihre Daten erst beim ersten Aufruf des jeweiligen Panels.
 
-Die neue **Übersicht** zeigt drei Spalten (heute / nächste 7 Tage / nächste 30 Tage — nicht überlappend, via `ReminderService::getUpcomingBirthdaysWithinDays()` und `MembersApiController::getOverview()`) sowie zwei reine SVG-Diagramme ohne externe Bibliothek: ein Kreisdiagramm „Geburtstage pro Monat" und ein Balkendiagramm „Altersstruktur" (10er-Jahrgangs-Buckets, erste Bucket 0–10 elf Werte breit, danach 11–20/21–30/…; Mitglieder ohne Geburtsjahr landen sichtbar in einer eigenen „unbekannt"-Säule statt stillschweigend zu fehlen). Die Alters-Bucketing-Logik ist als reine, testbare Methoden `ReminderCalculator::currentAge()`/`ageBucketIndex()` implementiert statt direkt im Controller.
+Die **Übersicht** zeigt drei Spalten (heute / nächste 7 Tage / nächste 30 Tage — nicht überlappend, via `ReminderService::getUpcomingBirthdaysWithinDays()` und `MembersApiController::getOverview()`) sowie zwei reine SVG-Diagramme ohne externe Bibliothek: ein Kreisdiagramm „Geburtstage pro Monat" und ein Balkendiagramm „Altersstruktur" (10er-Jahrgangs-Buckets, erste Bucket 0–10 elf Werte breit, danach 11–20/21–30/…; Mitglieder ohne Geburtsjahr landen sichtbar in einer eigenen „unbekannt"-Säule statt stillschweigend zu fehlen). Die Alters-Bucketing-Logik ist als reine, testbare Methoden `ReminderCalculator::currentAge()`/`ageBucketIndex()` implementiert.
 
-## Erweiterung: Zugriffsrechte über zwei feste Gruppen (M9)
+## Zugriffsrechte über zwei feste Gruppen
 
-Ursprünglich (M4) kontrollierte eine einzige, frei wählbare, per `occ admin-delegation:add` zugewiesene Gruppe sowohl das Mitgliederregister als auch die Admin-Einstellungen. Das wurde durch zwei feste, namentlich vorgegebene Gruppen ersetzt:
+Zwei feste, namentlich vorgegebene Gruppen steuern den Zugriff:
 
-- **„Geburtstagserinnerung Verantwortliche"** — nur das Mitgliederregister (Übersicht/Mitgliederliste/CSV-Import/Logs)
+- **„Geburtstagserinnerung Verantwortliche"** — nur das Mitgliederregister (Übersicht/Mitgliederliste/Import-Export/Geschenke/Logs)
 - **„Geburtstagserinnerung Admin"** — zusätzlich die Admin-Einstellungen (Empfänger/Meilensteine/Mail-Vorlage/Zeitplan)
 - echte Nextcloud-Systemadmins haben immer beides
 - alle anderen Nutzer sehen nichts, auch keinen Menüeintrag
 
-Umgesetzt über zwei getrennte `IDelegatedSettings`-Klassen: `AdminSettings` (die echte, sichtbare Admin-Einstellungsseite, weiterhin nur an „Geburtstagserinnerung Admin" delegiert) und neu `MemberAreaAccess` (permission-only, keine eigene Seite — gleiches Muster wie `apps/webhook_listeners`, siehe Kommentar in `appinfo/info.xml` — an beide Gruppen delegiert). `PageController`/`MembersApiController` prüfen jetzt gegen `MemberAreaAccess::class`, `AdminApiController` unverändert gegen `AdminSettings::class`.
+Umgesetzt über zwei getrennte `IDelegatedSettings`-Klassen: `AdminSettings` (die echte, sichtbare Admin-Einstellungsseite, nur an „Geburtstagserinnerung Admin" delegiert) und `MemberAreaAccess` (permission-only, keine eigene Seite — gleiches Muster wie `apps/webhook_listeners`, siehe Kommentar in `appinfo/info.xml` — an beide Gruppen delegiert). `PageController`/`MembersApiController` prüfen gegen `MemberAreaAccess::class`, `AdminApiController` gegen `AdminSettings::class`.
 
-Eine neue Migration (`Version1020Date20260827120000`) legt beide Gruppen beim `app:enable`/Upgrade automatisch (idempotent) über `IGroupManager::createGroup()` an; die eigentliche `occ admin-delegation:add`-Zuordnung bleibt bewusst ein manueller Schritt (siehe README.md), genau wie schon bei M4.
+Eine Migration (`Version1020Date20260827120000`) legt beide Gruppen beim `app:enable`/Upgrade automatisch (idempotent) über `IGroupManager::createGroup()` an; die eigentliche `occ admin-delegation:add`-Zuordnung bleibt bewusst ein manueller Schritt (siehe README.md).
 
-Der Menüeintrag selbst wird **nicht mehr statisch** über `<navigations>` in `info.xml` deklariert (das wäre für jeden eingeloggten Nutzer sichtbar gewesen), sondern dynamisch über einen `LoadAdditionalEntriesEvent`-Listener (`lib/Listener/LoadNavigationEntryListener.php`, registriert in `Application::register()`) — nur wenn der Nutzer Systemadmin oder Mitglied einer der beiden Gruppen ist, wird `INavigationManager::add()` aufgerufen. Wichtige Falle dabei: der erste Versuch, das in `Application::boot()` zu prüfen, scheiterte, weil `boot()` läuft, bevor die Anmeldung des laufenden Requests aufgelöst ist — `IUserSession::getUser()` lieferte dort immer `null`. Das reale, aktuelle Vorbild für den korrekten Ansatz ist `apps/app_api`'s `LoadMenuEntriesListener`.
+Der Menüeintrag wird **nicht statisch** über `<navigations>` in `info.xml` deklariert (das wäre für jeden eingeloggten Nutzer sichtbar gewesen), sondern dynamisch über einen `LoadAdditionalEntriesEvent`-Listener (`lib/Listener/LoadNavigationEntryListener.php`, registriert in `Application::register()`) — nur wenn der Nutzer Systemadmin oder Mitglied einer der beiden Gruppen ist, wird `INavigationManager::add()` aufgerufen. Wichtige Falle dabei: ein erster Versuch, das in `Application::boot()` zu prüfen, scheiterte, weil `boot()` läuft, bevor die Anmeldung des laufenden Requests aufgelöst ist — `IUserSession::getUser()` lieferte dort immer `null`. Das Vorbild für den korrekten Ansatz ist `apps/app_api`'s `LoadMenuEntriesListener`.
 
-## Architektur-Überblick
-
-```
-birthdayreminder/
-├── appinfo/{info.xml, routes.php}
-├── lib/
-│   ├── AppInfo/Application.php          # IBootstrap: DI, Widget-Registrierung
-│   ├── BackgroundJob/DailyReminderJob.php  # TimedJob, täglich
-│   ├── Contacts/ContactsGateway.php     # liest Adressbuch via CardDavBackend, parst BDAY
-│   ├── Model/Member.php
-│   ├── Db/{Recipient,RecipientMapper,Offset,OffsetMapper,Milestone,MilestoneMapper,ReminderLog,ReminderLogMapper}.php
-│   ├── Service/{ReminderCalculator,ReminderService,MailService,RecipientResolver,MailTemplateRenderer}.php
-│   ├── Controller/{AdminApiController,PersonalApiController}.php   # AJAX für Settings-UIs
-│   ├── Settings/{AdminSection,AdminSettings,PersonalSettings}.php
-│   ├── Dashboard/BirthdayWidget.php     # IAPIWidgetV2
-│   └── Migration/Version1000Date...php  # legt 4 DB-Tabellen an
-├── src/                                 # Vue-Frontend für Admin- und persönliche Einstellungsseite
-│   ├── settings-admin.js
-│   ├── settings-personal.js
-│   └── components/{OffsetList,RecipientForm,MilestoneList,CongratsEmailEditor}.vue
-├── css/, templates/, l10n/de.json
-└── package.json, composer.json (meist keine externen PHP-Deps nötig)
-```
-
-### Kontakte lesen (Adressbuch/BDAY/EMAIL)
-
-Nicht `OCP\Contacts\IManager` (braucht eine Nutzer-Session, funktioniert nicht im Background-Job). Stattdessen `OCA\DAV\CardDAV\CardDavBackend` direkt injizieren und die vCards mit `Sabre\VObject` parsen — das ist der übliche Weg, um ohne Login-Kontext auf Kontakte zuzugreifen. `ContactsGateway` kapselt das, damit nur eine Stelle angepasst werden muss, falls sich das ändert.
-
-BDAY-Parsing muss beide vCard-Formen abdecken: `--MMDD` (kein Jahr bekannt) und `YYYYMMDD`/`YYYY-MM-DD` (mit Jahr). Unparsebare Werte werden geloggt und übersprungen.
-
-Das Adressbuch wird einmalig in den Einstellungen ausgewählt: Admin gibt den Besitzer-Benutzernamen des gemeinsamen Adressbuchs ein, eine Dropdown-Liste von dessen Adressbüchern wird per AJAX geladen; die gewählte `addressBookId` wird über `IAppConfig` gespeichert.
-
-### Terminberechnung, Meilenstein-Filter & Idempotenz
+## Terminberechnung, Meilenstein-Filter & Idempotenz
 
 `ReminderCalculator` ist eine reine, ohne I/O testbare Klasse: für jeden Offset eines Empfängers wird `heute + N Tage` berechnet und mit Monat/Tag jedes Mitglieds verglichen (behandelt Jahreswechsel automatisch). 29. Februar in Nicht-Schaltjahren wird auf 28. Februar abgebildet.
 
-Wenn ein Empfänger `only_milestones = true` gesetzt hat, wird der Treffer zusätzlich gefiltert: das erreichte Alter am Zieltag (`Zieljahr - Geburtsjahr`) muss in der Meilenstein-Tabelle vorkommen. Das setzt ein bekanntes Geburtsjahr voraus — bei Kontakten ohne Jahr (`--MMDD`) kann kein Alter und damit kein „rund" bestimmt werden; solche Mitglieder werden für `only_milestones`-Empfänger übersprungen (und das wird beim Anlegen des Kontakts/Testens in der Admin-UI als Hinweis angezeigt, keine stille Fehlfunktion).
+Wenn ein Empfänger `only_milestones = true` gesetzt hat, wird der Treffer zusätzlich gefiltert: das erreichte Alter am Zieltag (`Zieljahr - Geburtsjahr`) muss in der Meilenstein-Tabelle vorkommen. Das setzt ein bekanntes Geburtsjahr voraus — bei Mitgliedern ohne Jahr kann kein Alter und damit kein „rund" bestimmt werden; solche Mitglieder werden für `only_milestones`-Empfänger übersprungen.
 
 Ist ein Treffer ein Meilenstein-Jahr, wird der zugehörige `gift_text` aus der Meilenstein-Tabelle geladen und in `ReminderService`/`MailService` an die Erinnerungs-Mail angehängt (unabhängig davon, ob der jeweilige Empfänger `only_milestones` gesetzt hat oder nicht — wer alle Geburtstage abonniert hat, sieht den Geschenk-Hinweis bei runden Geburtstagen genauso).
 
-Damit ein doppelt laufender Job (Webcron-Doppelauslösung, manueller `occ`-Aufruf) keine doppelten Mails verschickt, wird vor jedem Versand in einer Log-Tabelle geprüft, ob für `(kontakt_uid, erinnerungs_typ, tage_vorher, jahr)` schon gesendet wurde; danach wird der Versand dort protokolliert. Ein Unique-Index sichert das zusätzlich gegen Races ab.
+Damit ein doppelt laufender Job (Webcron-Doppelauslösung, manueller `occ`-Aufruf) keine doppelten Mails verschickt, wird vor jedem Versand in einer Log-Tabelle geprüft, ob für `(mitglieds_id, erinnerungs_typ, tage_vorher, jahr)` schon gesendet wurde; danach wird der Versand dort protokolliert. Ein Unique-Index sichert das zusätzlich gegen Races ab.
 
-### Datenmodell (4 Tabellen, per Migration)
+## Datenmodell: Empfänger, Vorlaufzeiten, Meilensteine, Log
 
 **`oc_birthdayreminder_recipient`** — Empfänger-Stammdaten (ein Datensatz pro Person/Gruppe/E-Mail, unabhängig von den Offsets):
+
 | Spalte | Typ | Hinweis |
 |---|---|---|
 | id | BIGINT PK | |
@@ -141,15 +114,17 @@ Damit ein doppelt laufender Job (Webcron-Doppelauslösung, manueller `occ`-Aufru
 Unique-Index auf `(recipient_type, recipient_value)`.
 
 **`oc_birthdayreminder_offset`** — welche Vorlauftage ein Empfänger hat:
+
 | Spalte | Typ | Hinweis |
 |---|---|---|
 | id | BIGINT PK | |
 | recipient_id | BIGINT, FK → recipient.id | |
 | days_before | INTEGER | 0 = Tag des Geburtstags |
 
-Unique-Index auf `(recipient_id, days_before)`. Ein Empfänger kann beliebig viele Zeilen haben (Empfänger A nur `30`, Empfänger B `30`+`14`+`10` usw.) — die Anzahl ist damit von Natur aus variabel.
+Unique-Index auf `(recipient_id, days_before)`. Ein Empfänger kann beliebig viele Zeilen haben — die Anzahl ist damit von Natur aus variabel.
 
 **`oc_birthdayreminder_milestone`** — konfigurierte runde Geburtstage + Geschenkvorschlag:
+
 | Spalte | Typ | Hinweis |
 |---|---|---|
 | id | BIGINT PK | |
@@ -157,10 +132,11 @@ Unique-Index auf `(recipient_id, days_before)`. Ein Empfänger kann beliebig vie
 | gift_text | TEXT | z.B. „Tankgutschein über 30 €" |
 
 **`oc_birthdayreminder_log`** — Versand-Historie / Idempotenz:
+
 | Spalte | Typ | Hinweis |
 |---|---|---|
 | id | BIGINT PK | |
-| contact_uid | STRING(255) | vCard-UID (stabil, auch bei Namensänderung) |
+| contact_uid | STRING(255) | Mitglieds-ID (stabil, auch bei Namensänderung) |
 | reminder_type | STRING(16) | `offset` (an Verantwortliche) \| `congrats` (ans Mitglied) |
 | days_before | INTEGER, nullable | nur bei `offset` |
 | birthday_year | INTEGER | |
@@ -168,75 +144,33 @@ Unique-Index auf `(recipient_id, days_before)`. Ein Empfänger kann beliebig vie
 
 Empfängertypen `user`/`group`/`email` werden beim Versand zu einer deduplizierten Menge von E-Mail-Adressen aufgelöst (`IUserManager`/`IGroupManager`), damit niemand doppelt Post bekommt, wenn er sowohl direkt als auch über eine Gruppe zugeordnet ist.
 
-### Einstellungen: Persönlich (User) + Admin (Vue, Standard-NC-Muster)
+## Einstellungen: Persönlich und Admin
 
-Zwei getrennte Einstellungsseiten, gleiche Tabelle, unterschiedlicher Wirkungsbereich:
+Zwei getrennte Einstellungsseiten (`js/settings-personal.js` / `js/settings-admin.js`, Vanilla JS ohne Build-Schritt), gleiche Recipient-Tabelle, unterschiedlicher Wirkungsbereich:
 
 **Grundprinzip Empfänger:** Verantwortliche haben ein eigenes Nextcloud-Benutzerkonto — das ist der primäre, vorgesehene Weg (`recipient_type='user'`), die Erinnerungs-Mail geht an die im NC-Benutzerkonto hinterlegte E-Mail-Adresse (`IUserManager::get($uid)->getEMailAddress()`). `group`/`email` bleiben als Zusatzoptionen bestehen (z.B. eine Sammel-Mailadresse oder eine Person ganz ohne NC-Konto), sind aber der Nebenfall.
 
-**Persönliche Einstellungen** (`PersonalSettings implements ISettings`, Bereich `personal` statt `admin` — jeder eingeloggte Nextcloud-Nutzer sieht das unter Einstellungen → Geburtstagserinnerung): Der Nutzer verwaltet dort seinen eigenen `oc_birthdayreminder_recipient`-Datensatz (`recipient_type='user'`, `recipient_value = <eigene UID>`, per Upsert automatisch angelegt) mit:
-- seiner eigenen Liste von Vorlauftagen (z.B. „30, 14")
-- einem Umschalter „Nur runde Geburtstage" ⇄ „Alle Geburtstage" (setzt `only_milestones`)
+**Persönliche Einstellungen** (`PersonalSettings implements ISettings`, Bereich `personal` — jeder eingeloggte Nextcloud-Nutzer sieht das unter Einstellungen → Geburtstagserinnerung): Der Nutzer verwaltet dort seinen eigenen `oc_birthdayreminder_recipient`-Datensatz (`recipient_type='user'`, `recipient_value = <eigene UID>`, per Upsert automatisch angelegt) mit seiner eigenen Liste von Vorlauftagen und dem Umschalter „Nur runde Geburtstage" ⇄ „Alle Geburtstage" (`only_milestones`).
 
 `PersonalApiController` erlaubt nur Lese-/Schreibzugriff auf den Recipient-Datensatz der eigenen UID (kein Admin-Recht nötig, aber strikt auf sich selbst beschränkt).
 
-**Admin vs. Nutzer wird über eine Nextcloud-Gruppe gesteuert, nicht über System-Admin-Rechte:** Die App-Admin-Einstellungsseite nutzt Nextclouds **Delegated Admin Settings** (`AdminSettings implements IDelegatedSettings` statt nur `ISettings`, verfügbar seit NC 25, passt zur Ziel-Version ≥28). Ein echter Nextcloud-Systemadministrator legt dabei einmalig über die Standard-Nextcloud-Oberfläche (Einstellungen → Verwaltung → Freigaben für Verwaltungseinstellungen) fest, welche Gruppe(n) — z.B. eine Gruppe „Vorstand" — Zugriff auf die Geburtstagserinnerung-Admin-Seite bekommen. Mitglieder dieser Gruppe gelten dann als „Admin für die Geburtstagserinnerung", ohne volle Nextcloud-Systemadmins sein zu müssen. Die AJAX-Endpunkte in `AdminApiController` sind entsprechend mit dem PHP-Attribut `#[AuthorizedAdminSetting(settings: AdminSettings::class)]` abgesichert (Standardmechanismus für delegierte Einstellungen), statt manuell `IGroupManager::isAdmin()` zu prüfen — dadurch gilt dieselbe Gruppen-Freigabe einheitlich für Seite und API.
+Die Admin-Einstellungsseite enthält zusätzlich:
+1. Die volle Tabelle aller Empfänger (inkl. `group`- und `email`-Empfänger, die keine eigene persönliche Einstellungsseite haben) mit ihren Offsets und dem „Nur runde Geburtstage"-Schalter
+2. **Runde Geburtstage / Geschenke**: Liste von (Alter, Geschenktext)-Paaren, frei bearbeitbar
+3. **Glückwunsch-Mail-Vorlage**: Betreff- und Textfeld mit Platzhaltern, Speicherung via `IAppConfig` (`congrats_subject_template`/`congrats_body_template`), Ersetzung zur Versandzeit über `MailTemplateRenderer`
+4. **Zeitplan & manueller Versand** (siehe oben)
 
-Die Admin-Einstellungsseite selbst enthält zusätzlich:
-1. Adressbuch-Auswahl (Besitzer eingeben → Dropdown laden → Verbindungstest zeigt Kontakt-/BDAY-Anzahl)
-2. Die volle Tabelle aller Empfänger (inkl. `group`- und `email`-Empfänger, die keine eigene persönliche Einstellungsseite haben) mit ihren Offsets und dem „Nur runde Geburtstage"-Schalter — Admin kann hier stellvertretend das tun, was ein Nutzer auch selbst in seinen persönlichen Einstellungen tun könnte
-3. **Runde Geburtstage / Geschenke**: Liste von (Alter, Geschenktext)-Paaren, frei bearbeitbar (`MilestoneList.vue` gegen `oc_birthdayreminder_milestone`)
-4. **Glückwunsch-Mail-Vorlage**: Ein Editor (`CongratsEmailEditor.vue`, Betreff- + Textfeld) für den Inhalt der Mail, die ans Mitglied selbst geht, mit Platzhaltern wie `{name}`, `{vorname}`, `{alter}`, `{datum}` — Speicherung als zwei Strings (`congrats_subject_template`, `congrats_body_template`) via `IAppConfig`. Ersetzung der Platzhalter zur Versandzeit übernimmt `MailTemplateRenderer`.
-
-Beide UIs teilen sich die `OffsetList.vue`-Komponente (persönliche Ansicht: nur Offset-Liste + Meilenstein-Schalter für den eigenen Datensatz, kein Empfängertyp wählbar, da implizit „ich selbst"; Admin-Ansicht: volle Tabelle mit Empfängertyp-Auswahl), Speichern jeweils über die passende API.
-
-### Dashboard-Widget
+## Dashboard-Widget
 
 `BirthdayWidget implements IAPIWidgetV2` liefert die nächsten anstehenden Geburtstage (gleiche Berechnungslogik wie der Background-Job, über `ReminderService` geteilt) — dank `IAPIWidgetV2` ohne eigenes Frontend-JS, die Dashboard-App rendert die Liste generisch.
 
-### Mailversand
+## Mailversand
 
-`MailService` nutzt `OCP\Mail\IMailer` + `IEMailTemplate` — dadurch automatisch über die in Nextcloud bereits konfigurierte SMTP-Transportroute, keine eigenen Zugangsdaten nötig. Zwei Methoden:
+`MailService` nutzt `OCP\Mail\IMailer` — dadurch automatisch über die in Nextcloud bereits konfigurierte SMTP-Transportroute, keine eigenen Zugangsdaten nötig. Zwei Methoden:
 
-- `sendReminder(string $toEmail, Member $member, int $daysBefore, ?string $giftText)` — an Verantwortliche. Ist `$giftText` gesetzt (Treffer = Meilenstein-Alter), wird ein zusätzlicher Absatz mit dem Geschenkvorschlag eingefügt. Wird unabhängig davon verschickt, ob das Mitglied selbst eine E-Mail-Adresse hat.
-- `sendCongratulation(string $toEmail, Member $member)` — ans Mitglied, **nur wenn `$member->email` vorhanden ist**; `ReminderService` prüft das vorher und überspringt (mit Log-Eintrag) Mitglieder ohne E-Mail-Adresse, ohne dass das den Versand der Verantwortlichen-Erinnerungen beeinflusst. Betreff/Text kommen nicht mehr aus Code, sondern werden über `MailTemplateRenderer::render($template, [...])` aus den admin-konfigurierten Vorlagen (`congrats_subject_template`/`congrats_body_template`, s. Admin-Einstellungen) erzeugt; ein einfacher `str_replace('{platzhalter}', ...)`-Renderer genügt.
+- `sendReminder(...)` — an Verantwortliche, unabhängig davon, ob das Mitglied selbst eine E-Mail-Adresse hat. Ist ein Geschenkvorschlag hinterlegt (Treffer = Meilenstein-Alter), wird er angehängt.
+- `sendCongratulation(...)` — ans Mitglied, **nur wenn eine E-Mail-Adresse hinterlegt ist**; `ReminderService` prüft das vorher und überspringt (mit Log-Eintrag) Mitglieder ohne E-Mail-Adresse, ohne dass das den Versand der Verantwortlichen-Erinnerungen beeinflusst. Betreff/Text werden über `MailTemplateRenderer::render($template, [...])` aus den admin-konfigurierten Vorlagen erzeugt.
 
-### Entwicklung & Test
+## Entwicklung & Test
 
-Statt einer lokalen Docker-Instanz wird direkt gegen eine **separate Test-Nextcloud-Instanz bei all-inkl** entwickelt (vom Nutzer bereitgestellt, per SSH erreichbar). Ablauf pro Änderung:
-
-1. Code lokal schreiben, PHPUnit-Tests für reine Logik (`ReminderCalculator`, BDAY-Parsing) lokal ohne Nextcloud-Runtime laufen lassen (Schaltjahre, Jahreswechsel, Kontakte ohne Geburtsjahr).
-2. App-Code per `rsync`/`scp` über SSH auf die Test-Instanz übertragen (in `apps/` bzw. `custom_apps/`).
-3. Vue-Frontend lokal bauen (`npm run build`), kompiliertes JS mit ausliefern — kein Node auf dem Server nötig.
-4. Auf der Test-Instanz per SSH: `occ app:enable birthdayreminder` (führt Migration automatisch aus, registriert Background-Job), Testkontakte mit Geburtstag = heute±Offset im Test-Adressbuch anlegen, Job manuell per `occ background-job:execute <id>` oder `occ background-job:list` gefolgt vom nächsten Cron-Tick anstoßen, Mailversand kontrollieren (bei einer echten Instanz gehen Mails über die dort konfigurierte SMTP-Route — ggf. eine Test-Empfängeradresse nutzen).
-5. Nach Verifikation auf der Testinstanz: gleiches Deployment (Schritt 2–4, `occ app:enable`) auf der echten Vereins-Instanz. Kein neuer Cron-Eintrag nötig — der Job läuft über den ohnehin vorhandenen Nextcloud-Cron mit.
-
-Sobald der Nutzer Zugangsdaten (SSH-Host, ggf. Pfad zur Nextcloud-Installation) zur Testinstanz bereitstellt, kann direkt darauf entwickelt/getestet werden.
-
-## Bau-Reihenfolge (Meilensteine)
-
-- **M1** — Kontakte lesen + Terminberechnung, nur `occ`-Debug-Befehl der Treffer auf der Konsole ausgibt (kein DB/Mail). Auf der Test-Instanz gegen echte/testweise angelegte Vereinskontakte validiert.
-- **M2** — Persistenz + echter Versand der Verantwortlichen-Erinnerungen: Migration (alle 4 Tabellen), Mapper, `ReminderService`, `MailService`, `DailyReminderJob`. Konfiguration vorerst per `occ config`/SQL, noch ohne UI.
-- **M3** — Glückwunsch-Mail ans Mitglied (gleicher Job-Lauf, gleiche Idempotenz-Logik mit `reminder_type='congrats'`; Mitglieder ohne E-Mail werden übersprungen).
-- **M4** — Admin-Einstellungsseite als Delegated Admin Setting (`IDelegatedSettings`, Gruppen-Freigabe z.B. für „Vorstand"): Adressbuch-Auswahl, Empfänger/Offset-Verwaltung inkl. „Nur runde Geburtstage"-Schalter, Meilenstein/Geschenk-Liste, Glückwunsch-Mail-Editor mit Platzhaltern (löst manuelle Config-Bearbeitung aus M2 ab).
-- **M4b** — Persönliche Einstellungsseite, über die jeder Nutzer seine eigenen Vorlauftage + Meilenstein-Schalter selbst verwaltet (teilt sich Komponente/Backend-Tabellen mit M4).
-- **M5** — Dashboard-Widget.
-- **M6** — Deploy auf den echten all-inkl-Vereins-Server, `occ app:enable`, erster echter Cron-Durchlauf verifizieren, Mailversand (inkl. Meilenstein-Text und Platzhalter-Ersetzung) kontrollieren.
-
-## Kritische Dateien
-- `lib/Contacts/ContactsGateway.php`
-- `lib/Service/ReminderCalculator.php` (inkl. Meilenstein-/Alter-Filterlogik)
-- `lib/Service/ReminderService.php`
-- `lib/Service/MailTemplateRenderer.php` (Platzhalter-Ersetzung für die Glückwunsch-Mail)
-- `lib/BackgroundJob/DailyReminderJob.php`
-- `lib/Migration/Version1000Date20260101000000.php` (4 Tabellen)
-- `lib/Controller/AdminApiController.php` / `lib/Controller/PersonalApiController.php`
-- `lib/Settings/AdminSettings.php` / `lib/Settings/PersonalSettings.php`
-- `appinfo/info.xml`
-
-## Verifikation
-- M1: `occ`-Debug-Befehl auf der Test-Instanz gegen das Test-Adressbuch laufen lassen, Ausgabe manuell mit erwarteten Geburtstagen abgleichen.
-- PHPUnit für `ReminderCalculator` (Jahreswechsel, Schaltjahr, Kontakt ohne Geburtsjahr) und BDAY-Regex-Parsing — lokal, ohne Nextcloud-Runtime.
-- M2/M3: Auf der Test-Instanz Testkontakte mit Geburtstag = heute±Offset anlegen, Job manuell per `occ background-job:execute` anstoßen, tatsächlichen Mailversand an eine Test-Adresse prüfen — inkl. zweitem Lauf am selben Tag, um Idempotenz zu bestätigen.
-- M4/M4b/M5: Admin-Einstellungsseite, persönliche Einstellungsseite (mit zweitem Testnutzer prüfen, dass er nur seine eigenen Zeilen sieht/ändern kann) und Dashboard-Widget im Browser gegen die Test-Instanz durchklicken. Gezielt einen Testkontakt mit Meilenstein-Alter (z.B. wird heute+30 Tage 18) anlegen und prüfen, dass der Geschenktext in der Erinnerungs-Mail auftaucht, ein `only_milestones`-Empfänger nur bei diesem Treffer benachrichtigt wird, und die Glückwunsch-Mail mit korrekt ersetzten Platzhaltern sowie ein Testkontakt ganz ohne E-Mail-Adresse (keine Glückwunsch-Mail, aber Verantwortliche werden trotzdem informiert) verifizieren.
-- M6: Nach Deploy auf die echte Vereins-Instanz `occ migrations:status birthdayreminder` und `occ background-job:list` prüfen, dann einen echten Cron-Zyklus abwarten und Mailzustellung an Verantwortliche und Testmitglied kontrollieren.
+PHPUnit deckt die reine, DB-freie Logik ab (Terminberechnung, CSV-/Datums-Parsing, Import-Abgleich, Alters-Bucketing) und läuft ohne Nextcloud-Runtime — siehe [README.md](../README.md#entwicklung). Alles, was echte Nextcloud-Services braucht (Controller, Mailversand, Kontakte-Zugriff, Datenbank-Mapper), wird manuell gegen eine laufende Nextcloud-Instanz verifiziert: App aktivieren (`occ app:enable`, führt die Migration aus), Testmitglieder mit Geburtstag = heute±Offset anlegen, den Background-Job manuell anstoßen (`occ background-job:list` + nächster Cron-Tick, oder `occ background-job:execute <id>`) und den tatsächlichen Mailversand kontrollieren — inklusive eines zweiten Laufs am selben Tag, um Idempotenz zu bestätigen.
