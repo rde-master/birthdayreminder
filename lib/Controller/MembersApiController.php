@@ -10,6 +10,7 @@ use OCA\BirthdayReminder\Db\ReminderLog;
 use OCA\BirthdayReminder\Db\ReminderLogMapper;
 use OCA\BirthdayReminder\Service\CsvImportService;
 use OCA\BirthdayReminder\Service\CsvParser;
+use OCA\BirthdayReminder\Service\ReminderService;
 use OCA\BirthdayReminder\Settings\AdminSettings;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Db\DoesNotExistException;
@@ -25,6 +26,7 @@ class MembersApiController extends Controller {
         private CsvImportService $csvImportService,
         private CsvParser $csvParser,
         private ReminderLogMapper $reminderLogMapper,
+        private ReminderService $reminderService,
     ) {
         parent::__construct($appName, $request);
     }
@@ -105,6 +107,36 @@ class MembersApiController extends Controller {
         $delimiter = $delimiter !== null && $delimiter !== '' ? $delimiter : $this->csvParser->guessDelimiter($csvContent);
         $result = $this->csvImportService->import($csvContent, $delimiter, $mapping);
         return new JSONResponse($result);
+    }
+
+    /**
+     * Upcoming birthdays of active members, bucketed into "today" / "next 7
+     * days" / "next 30 days" (non-overlapping) for the Übersicht page.
+     */
+    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
+    public function getOverview(): JSONResponse {
+        $upcoming = $this->reminderService->getUpcomingBirthdaysWithinDays(30);
+
+        $today = [];
+        $next7 = [];
+        $next30 = [];
+        foreach ($upcoming as $entry) {
+            $item = [
+                'name' => $entry['member']->displayName,
+                'date' => $entry['targetDate']->format('d.m.Y'),
+                'age' => $entry['age'],
+                'daysUntil' => $entry['daysUntil'],
+            ];
+            if ($entry['daysUntil'] === 0) {
+                $today[] = $item;
+            } elseif ($entry['daysUntil'] <= 7) {
+                $next7[] = $item;
+            } else {
+                $next30[] = $item;
+            }
+        }
+
+        return new JSONResponse(['today' => $today, 'next7' => $next7, 'next30' => $next30]);
     }
 
     #[AuthorizedAdminSetting(settings: AdminSettings::class)]

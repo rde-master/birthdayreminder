@@ -58,6 +58,31 @@ final class ReminderService {
     }
 
     /**
+     * All active members whose next birthday falls within the given number
+     * of days from today (inclusive), sorted by proximity. Used by the
+     * "Übersicht" page's today/7-day/30-day columns - shares the same date
+     * logic as getUpcomingBirthdays()/run() so it can never drift out of sync.
+     *
+     * @return array<int, array{member: Member, daysUntil: int, targetDate: DateTimeImmutable, age: ?int}>
+     */
+    public function getUpcomingBirthdaysWithinDays(int $maxDays): array {
+        $today = new DateTimeImmutable('today');
+        $members = $this->activeMembers();
+
+        $upcoming = array_filter(
+            array_map(
+                fn (Member $member) => array_merge(['member' => $member], $this->calculator->daysUntilNextBirthday($member, $today)),
+                $members
+            ),
+            static fn ($entry) => $entry['daysUntil'] <= $maxDays
+        );
+
+        usort($upcoming, static fn ($a, $b) => $a['daysUntil'] <=> $b['daysUntil']);
+
+        return array_values($upcoming);
+    }
+
+    /**
      * Full daily pass: reminders to recipients + congrats to the members
      * themselves. Used by the scheduled background job.
      */

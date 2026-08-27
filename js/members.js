@@ -58,19 +58,51 @@
 		console.error('[birthdayreminder]', err);
 	}
 
-	// ---- Header: title, explanation, links to the other settings pages ----
+	// ---- Übersicht: today / next 7 days / next 30 days ------------------
 
-	function renderHeader(root) {
-		var wrap = section(t('Mitgliederregister'));
+	function formatOverviewAge(age) {
+		return (age !== null && age !== undefined) ? (' (' + t('wird') + ' ' + age + ')') : ' (' + t('Alter unbekannt') + ')';
+	}
+
+	function renderOverviewColumn(title, entries) {
+		var col = el('div', { class: 'birthdayreminder-overview-column' });
+		col.appendChild(el('h4', { text: title }));
+		if (entries.length === 0) {
+			col.appendChild(el('p', { class: 'birthdayreminder-status', text: t('Keine Geburtstage.') }));
+			return col;
+		}
+		var list = el('ul', { class: 'birthdayreminder-overview-list' });
+		entries.forEach(function (e) {
+			list.appendChild(el('li', { text: e.name + ' – ' + e.date + formatOverviewAge(e.age) }));
+		});
+		col.appendChild(list);
+		return col;
+	}
+
+	function renderOverview(root) {
+		var wrap = section(t('Übersicht'));
 		wrap.appendChild(el('p', {
-			text: t('Hier pflegst du die Vereinsmitglieder (Vorname, Nachname, Geburtsdatum, E-Mail-Adresse), auf denen alle Geburtstagserinnerungen basieren - entweder manuell oder per CSV-Import. Ein deaktiviertes Mitglied erhält und verursacht keinerlei E-Mails mehr.'),
+			text: t('Die anstehenden Geburtstage der aktiven Mitglieder, aufgeteilt nach Vorlaufzeit.'),
 		}));
-		var links = el('div', { class: 'birthdayreminder-row' }, [
-			el('a', { class: 'button', href: OC.generateUrl('/settings/user/birthdayreminder'), text: t('Persönliche Einstellungen') }),
-			el('a', { class: 'button', href: OC.generateUrl('/settings/admin/birthdayreminder'), text: t('Admin-Einstellungen') }),
-		]);
-		wrap.appendChild(links);
+		var columnsWrap = el('div', { class: 'birthdayreminder-overview-columns' });
+		wrap.appendChild(columnsWrap);
 		root.appendChild(wrap);
+
+		function load() {
+			columnsWrap.innerHTML = '';
+			columnsWrap.appendChild(el('p', { class: 'birthdayreminder-status', text: t('Lade …') }));
+			api('GET', '/admin/overview').then(function (data) {
+				columnsWrap.innerHTML = '';
+				columnsWrap.appendChild(renderOverviewColumn(t('Heute'), data.today));
+				columnsWrap.appendChild(renderOverviewColumn(t('In den nächsten 7 Tagen'), data.next7));
+				columnsWrap.appendChild(renderOverviewColumn(t('In den nächsten 30 Tagen'), data.next30));
+			}).catch(function (err) {
+				columnsWrap.innerHTML = '';
+				columnsWrap.appendChild(el('p', { class: 'birthdayreminder-status', text: String(err.message || err) }));
+			});
+		}
+
+		return { reload: load };
 	}
 
 	// ---- CSV import ------------------------------------------------------
@@ -469,7 +501,7 @@
 		wrap.appendChild(membersTableWrap);
 
 		root.appendChild(wrap);
-		loadMembersList();
+		return { reload: loadMembersList };
 	}
 
 	// ---- Send log (Versand-Log) ---------------------------------------
@@ -495,10 +527,7 @@
 			text: t('Protokoll aller tatsächlich verschickten Erinnerungs- und Glückwunsch-Mails (die letzten 200 Einträge, neueste zuerst). Dient auch der Nachvollziehbarkeit, warum eine Mail an einem Tag nicht erneut verschickt wurde.'),
 		}));
 
-		var toggleButton = el('button', { type: 'button', class: 'button', text: t('Log anzeigen') });
 		var contentWrap = el('div');
-		var loaded = false;
-		var visible = false;
 
 		function renderTable(entries) {
 			contentWrap.innerHTML = '';
@@ -532,7 +561,6 @@
 			contentWrap.innerHTML = '';
 			contentWrap.appendChild(el('p', { class: 'birthdayreminder-status', text: t('Lade …') }));
 			api('GET', '/admin/send-log').then(function (entries) {
-				loaded = true;
 				renderTable(entries);
 			}).catch(function (err) {
 				contentWrap.innerHTML = '';
@@ -540,24 +568,91 @@
 			});
 		}
 
-		toggleButton.addEventListener('click', function () {
-			visible = !visible;
-			if (visible) {
-				toggleButton.textContent = t('Log ausblenden');
-				contentWrap.style.display = '';
-				if (!loaded) {
-					loadLog();
-				}
-			} else {
-				toggleButton.textContent = t('Log anzeigen');
-				contentWrap.style.display = 'none';
-			}
-		});
-
-		contentWrap.style.display = 'none';
-		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [toggleButton]));
 		wrap.appendChild(contentWrap);
 		root.appendChild(wrap);
+		return { reload: loadLog };
+	}
+
+	// ---- Layout: left sidebar (nav + settings links) + content area -----
+
+	var NAV_ITEMS = [
+		{ key: 'overview', label: t('Übersicht') },
+		{ key: 'members', label: t('Mitgliederliste') },
+		{ key: 'import', label: t('CSV-Import') },
+		{ key: 'logs', label: t('Logs') },
+	];
+
+	function renderLayout(root) {
+		var layout = el('div', { class: 'birthdayreminder-layout' });
+		var sidebar = el('div', { class: 'birthdayreminder-sidebar' });
+		var content = el('div', { class: 'birthdayreminder-content' });
+
+		sidebar.appendChild(el('a', {
+			class: 'button birthdayreminder-sidebar-link',
+			href: OC.generateUrl('/settings/user/birthdayreminder'),
+			text: t('Persönliche Einstellungen'),
+		}));
+
+		var nav = el('nav', { class: 'birthdayreminder-nav' });
+		var navButtons = {};
+		NAV_ITEMS.forEach(function (item) {
+			var btn = el('button', { type: 'button', class: 'birthdayreminder-nav-item', text: item.label });
+			btn.addEventListener('click', function () { activate(item.key); });
+			navButtons[item.key] = btn;
+			nav.appendChild(btn);
+		});
+		sidebar.appendChild(nav);
+
+		sidebar.appendChild(el('a', {
+			class: 'button birthdayreminder-sidebar-link birthdayreminder-sidebar-link-bottom',
+			href: OC.generateUrl('/settings/admin/birthdayreminder'),
+			text: t('Admin-Einstellungen'),
+		}));
+
+		var panels = {
+			overview: el('div', { class: 'birthdayreminder-panel' }),
+			members: el('div', { class: 'birthdayreminder-panel' }),
+			import: el('div', { class: 'birthdayreminder-panel' }),
+			logs: el('div', { class: 'birthdayreminder-panel' }),
+		};
+		Object.keys(panels).forEach(function (key) {
+			panels[key].style.display = 'none';
+			content.appendChild(panels[key]);
+		});
+
+		var overviewHandle = renderOverview(panels.overview);
+		var membersHandle = renderMembersList(panels.members);
+		renderImport(panels.import);
+		var logsHandle = renderSendLog(panels.logs);
+
+		var loadedOnce = {};
+		var activeKey = null;
+
+		function activate(key) {
+			if (activeKey === key) {
+				return;
+			}
+			activeKey = key;
+			Object.keys(panels).forEach(function (k) {
+				panels[k].style.display = (k === key) ? '' : 'none';
+				navButtons[k].classList.toggle('active', k === key);
+			});
+			if (key === 'overview') {
+				overviewHandle.reload();
+			} else if (key === 'members' && !loadedOnce.members) {
+				loadedOnce.members = true;
+				membersHandle.reload();
+			} else if (key === 'logs' && !loadedOnce.logs) {
+				loadedOnce.logs = true;
+				logsHandle.reload();
+			}
+		}
+
+		activate('overview');
+
+		layout.appendChild(sidebar);
+		layout.appendChild(content);
+		root.appendChild(layout);
 	}
 
 	document.addEventListener('DOMContentLoaded', function () {
@@ -565,9 +660,6 @@
 		if (!root) {
 			return;
 		}
-		renderHeader(root);
-		renderImport(root);
-		renderMembersList(root);
-		renderSendLog(root);
+		renderLayout(root);
 	});
 })();
