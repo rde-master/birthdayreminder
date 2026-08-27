@@ -111,6 +111,21 @@ class MembersApiController extends Controller {
     }
 
     /**
+     * A blank-to-fill-in CSV matching exactly what the CSV import expects,
+     * with two example rows demonstrating both supported Geburtsdatum
+     * formats (with and without a known year) and an empty-E-Mail row.
+     */
+    #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
+    public function importTemplateCsv(): DataDownloadResponse {
+        $rows = [
+            ['Max', 'Mustermann', '15.03.1990', 'max.mustermann@example.com'],
+            ['Erika', 'Musterfrau', '03.11.', ''],
+        ];
+        $csv = $this->csvExporter->toCsv(['Vorname', 'Nachname', 'Geburtsdatum', 'E-Mail'], $rows);
+        return new DataDownloadResponse($csv, 'mitglieder-import-vorlage.csv', 'text/csv; charset=UTF-8');
+    }
+
+    /**
      * @param array{firstName: string, lastName: string, birthdate: string, email: string} $mapping
      */
     #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]

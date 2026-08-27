@@ -305,6 +305,9 @@
 			text: t('CSV-Datei auswählen, Spalten den Feldern zuordnen und importieren. Neue Namen (Vorname+Nachname) werden angelegt, vorhandene bei Änderungen aktualisiert, und Mitglieder, die in der Datei fehlen, werden automatisch deaktiviert (mit Bemerkung „' + MemberSyncAutoRemark() + '“). Bereits deaktivierte Mitglieder werden dabei nicht automatisch wieder aktiviert.'),
 		}));
 
+		var templateLink = el('a', { class: 'button', href: url('/admin/members/import-template'), text: t('Vorlage herunterladen') });
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [templateLink]));
+
 		var fileInput = el('input', { type: 'file', accept: '.csv,text/csv' });
 		var mappingWrap = el('div', { class: 'birthdayreminder-add-grid' });
 		var previewWrap = el('div');

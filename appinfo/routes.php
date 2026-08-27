@@ -9,6 +9,7 @@ return [
         ['name' => 'membersApi#getMembers', 'url' => '/admin/members', 'verb' => 'GET'],
         ['name' => 'membersApi#saveMember', 'url' => '/admin/members', 'verb' => 'POST'],
         ['name' => 'membersApi#deleteMember', 'url' => '/admin/members/{id}', 'verb' => 'DELETE', 'requirements' => ['id' => '\d+']],
+        ['name' => 'membersApi#importTemplateCsv', 'url' => '/admin/members/import-template', 'verb' => 'GET'],
         ['name' => 'membersApi#importMembers', 'url' => '/admin/members/import', 'verb' => 'POST'],
         ['name' => 'membersApi#importContacts', 'url' => '/admin/members/import-contacts', 'verb' => 'POST'],
         ['name' => 'membersApi#exportContacts', 'url' => '/admin/members/export-contacts', 'verb' => 'POST'],
