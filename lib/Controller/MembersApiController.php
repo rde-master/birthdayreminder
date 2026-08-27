@@ -13,7 +13,7 @@ use OCA\BirthdayReminder\Service\CsvImportService;
 use OCA\BirthdayReminder\Service\CsvParser;
 use OCA\BirthdayReminder\Service\ReminderCalculator;
 use OCA\BirthdayReminder\Service\ReminderService;
-use OCA\BirthdayReminder\Settings\AdminSettings;
+use OCA\BirthdayReminder\Settings\MemberAreaAccess;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http\Attribute\AuthorizedAdminSetting;
@@ -34,7 +34,7 @@ class MembersApiController extends Controller {
         parent::__construct($appName, $request);
     }
 
-    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
+    #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
     public function getMembers(): JSONResponse {
         return new JSONResponse(array_map(
             fn (Member $m) => $this->serializeMember($m),
@@ -42,7 +42,7 @@ class MembersApiController extends Controller {
         ));
     }
 
-    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
+    #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
     public function saveMember(
         ?int $id,
         string $firstName,
@@ -91,7 +91,7 @@ class MembersApiController extends Controller {
         return new JSONResponse($this->serializeMember($saved));
     }
 
-    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
+    #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
     public function deleteMember(int $id): JSONResponse {
         try {
             $member = $this->memberMapper->find($id);
@@ -105,7 +105,7 @@ class MembersApiController extends Controller {
     /**
      * @param array{firstName: string, lastName: string, birthdate: string, email: string} $mapping
      */
-    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
+    #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
     public function importMembers(string $csvContent, array $mapping, ?string $delimiter = null): JSONResponse {
         $delimiter = $delimiter !== null && $delimiter !== '' ? $delimiter : $this->csvParser->guessDelimiter($csvContent);
         $result = $this->csvImportService->import($csvContent, $delimiter, $mapping);
@@ -118,7 +118,7 @@ class MembersApiController extends Controller {
      * count (index 0 = January) across all active members - for the
      * Übersicht page.
      */
-    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
+    #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
     public function getOverview(): JSONResponse {
         $upcoming = $this->reminderService->getUpcomingBirthdaysWithinDays(30);
 
@@ -177,7 +177,7 @@ class MembersApiController extends Controller {
         ]);
     }
 
-    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
+    #[AuthorizedAdminSetting(settings: MemberAreaAccess::class)]
     public function getSendLog(): JSONResponse {
         $logs = $this->reminderLogMapper->findRecent(200);
 

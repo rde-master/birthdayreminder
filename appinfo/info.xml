@@ -5,7 +5,7 @@
     <name>Geburtstagserinnerung</name>
     <summary>Erinnerungs- und Glückwunsch-Mails zu Geburtstagen von Vereinsmitgliedern, verwaltet in einem eigenen Mitgliederregister mit CSV-Import.</summary>
     <description><![CDATA[Eigenes Mitgliederregister (Vorname, Nachname, Geburtsdatum, E-Mail, Deaktiviert-Schalter) mit CSV-Import, der neue Mitglieder anlegt, geänderte aktualisiert und beim Import fehlende automatisch deaktiviert. Verschickt zu frei konfigurierbaren Vorlaufzeiten Erinnerungs-Mails an Verantwortliche sowie eine Glückwunsch-Mail an das Mitglied selbst. Zeigt außerdem die nächsten anstehenden Geburtstage als Dashboard-Widget.]]></description>
-    <version>0.7.2</version>
+    <version>0.8.0</version>
     <licence>agpl</licence>
     <author>Verein</author>
     <namespace>BirthdayReminder</namespace>
@@ -17,13 +17,12 @@
     <background-jobs>
         <job>OCA\BirthdayReminder\BackgroundJob\DailyReminderJob</job>
     </background-jobs>
-    <navigations>
-        <navigation>
-            <name>Geburtstagserinnerung</name>
-            <route>birthdayreminder.page.index</route>
-            <order>50</order>
-        </navigation>
-    </navigations>
+    <!--
+    No static <navigations> entry: the top-nav link is registered dynamically
+    in Application::boot(), and only for users who are a Nextcloud admin or a
+    member of one of this app's two groups - everyone else never sees it at
+    all (see docs/plan.md, section "Zugriffsrechte").
+    -->
     <commands>
         <command>OCA\BirthdayReminder\Command\DebugUpcoming</command>
         <command>OCA\BirthdayReminder\Command\AddRecipient</command>
@@ -38,11 +37,20 @@
         CalDAVSettings) is registered as a normal <admin> setting while the
         class implements IDelegatedSettings - that's what makes it show up
         in the standard Administration nav for full admins immediately, and
-        become delegatable to a chosen group (e.g. "Vorstand") via
+        become delegatable to a chosen group via
         Settings -> Administration -> Delegation / `occ admin-delegation:add`.
+
+        AdminSettings is the real, visible Admin-Einstellungen page - delegate
+        it only to "Geburtstagserinnerung Admin". MemberAreaAccess has no page
+        of its own (same permission-only pattern as apps/webhook_listeners) -
+        it exists purely to gate the Mitgliederregister page/API, delegated to
+        both "Geburtstagserinnerung Verantwortliche" and "Geburtstagserinnerung
+        Admin".
         -->
         <admin>OCA\BirthdayReminder\Settings\AdminSettings</admin>
         <admin-section>OCA\BirthdayReminder\Settings\AdminSection</admin-section>
+        <admin-delegation>OCA\BirthdayReminder\Settings\MemberAreaAccess</admin-delegation>
+        <admin-delegation-section>OCA\BirthdayReminder\Settings\MemberAreaSection</admin-delegation-section>
         <personal>OCA\BirthdayReminder\Settings\PersonalSettings</personal>
         <personal-section>OCA\BirthdayReminder\Settings\PersonalSection</personal-section>
     </settings>
