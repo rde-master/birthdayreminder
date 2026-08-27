@@ -154,6 +154,67 @@
 		return wrap;
 	}
 
+	function ageBucketLabel(index) {
+		return index === 0 ? '0–10' : ((index * 10 + 1) + '–' + (index * 10 + 10));
+	}
+
+	function renderAgeChart(ageBuckets, unknownAge) {
+		var labels = ageBuckets.map(function (_, i) { return ageBucketLabel(i); });
+		var counts = ageBuckets.slice();
+		if (unknownAge > 0) {
+			labels.push(t('unbekannt'));
+			counts.push(unknownAge);
+		}
+
+		var wrap = el('div', { class: 'birthdayreminder-chart-container' });
+		var total = counts.reduce(function (a, b) { return a + b; }, 0);
+		if (total === 0) {
+			wrap.appendChild(el('p', { class: 'birthdayreminder-status', text: t('Keine Mitglieder mit hinterlegtem Geburtsdatum.') }));
+			return wrap;
+		}
+
+		var barWidth = 28;
+		var gap = 12;
+		var chartHeight = 160;
+		var topPadding = 16;
+		var bottomPadding = 26;
+		var width = counts.length * (barWidth + gap) + gap;
+		var height = topPadding + chartHeight + bottomPadding;
+		var maxCount = Math.max.apply(null, counts);
+
+		var svg = svgEl('svg', { viewBox: '0 0 ' + width + ' ' + height, class: 'birthdayreminder-barchart' });
+
+		counts.forEach(function (count, i) {
+			var x = gap + i * (barWidth + gap);
+			var barHeight = maxCount > 0 ? (count / maxCount) * chartHeight : 0;
+			var y = topPadding + chartHeight - barHeight;
+			var isUnknown = unknownAge > 0 && i === counts.length - 1;
+
+			if (count > 0) {
+				svg.appendChild(svgEl('rect', {
+					x: x, y: y, width: barWidth, height: barHeight,
+					class: isUnknown ? 'birthdayreminder-chart-bar-unknown' : 'birthdayreminder-chart-bar',
+				}));
+				var valueLabel = svgEl('text', {
+					x: x + barWidth / 2, y: y - 4, 'text-anchor': 'middle',
+					class: 'birthdayreminder-chart-value',
+				});
+				valueLabel.textContent = String(count);
+				svg.appendChild(valueLabel);
+			}
+
+			var axisLabel = svgEl('text', {
+				x: x + barWidth / 2, y: topPadding + chartHeight + 16, 'text-anchor': 'middle',
+				class: 'birthdayreminder-chart-axis-label',
+			});
+			axisLabel.textContent = labels[i];
+			svg.appendChild(axisLabel);
+		});
+
+		wrap.appendChild(svg);
+		return wrap;
+	}
+
 	function renderOverview(root) {
 		var wrap = section(t('Übersicht'));
 		wrap.appendChild(el('p', {
@@ -162,22 +223,36 @@
 		var columnsWrap = el('div', { class: 'birthdayreminder-overview-columns' });
 		wrap.appendChild(columnsWrap);
 
-		wrap.appendChild(el('h4', { class: 'birthdayreminder-chart-heading', text: t('Geburtstage pro Monat') }));
-		var chartWrap = el('div');
-		wrap.appendChild(chartWrap);
+		var chartsRow = el('div', { class: 'birthdayreminder-charts-row' });
+
+		var monthBlock = el('div', { class: 'birthdayreminder-chart-block' });
+		monthBlock.appendChild(el('h4', { class: 'birthdayreminder-chart-heading', text: t('Geburtstage pro Monat') }));
+		var monthChartWrap = el('div');
+		monthBlock.appendChild(monthChartWrap);
+
+		var ageBlock = el('div', { class: 'birthdayreminder-chart-block' });
+		ageBlock.appendChild(el('h4', { class: 'birthdayreminder-chart-heading', text: t('Altersstruktur') }));
+		var ageChartWrap = el('div');
+		ageBlock.appendChild(ageChartWrap);
+
+		chartsRow.appendChild(monthBlock);
+		chartsRow.appendChild(ageBlock);
+		wrap.appendChild(chartsRow);
 
 		root.appendChild(wrap);
 
 		function load() {
 			columnsWrap.innerHTML = '';
 			columnsWrap.appendChild(el('p', { class: 'birthdayreminder-status', text: t('Lade …') }));
-			chartWrap.innerHTML = '';
+			monthChartWrap.innerHTML = '';
+			ageChartWrap.innerHTML = '';
 			api('GET', '/admin/overview').then(function (data) {
 				columnsWrap.innerHTML = '';
 				columnsWrap.appendChild(renderOverviewColumn(t('Heute'), data.today));
 				columnsWrap.appendChild(renderOverviewColumn(t('In den nächsten 7 Tagen'), data.next7));
 				columnsWrap.appendChild(renderOverviewColumn(t('In den nächsten 30 Tagen'), data.next30));
-				chartWrap.appendChild(renderMonthChart(data.monthCounts));
+				monthChartWrap.appendChild(renderMonthChart(data.monthCounts));
+				ageChartWrap.appendChild(renderAgeChart(data.ageBuckets, data.unknownAge));
 			}).catch(function (err) {
 				columnsWrap.innerHTML = '';
 				columnsWrap.appendChild(el('p', { class: 'birthdayreminder-status', text: String(err.message || err) }));

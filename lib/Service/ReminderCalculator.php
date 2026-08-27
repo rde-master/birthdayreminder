@@ -84,4 +84,25 @@ final class ReminderCalculator {
         // Unreachable: the next-year candidate is always >= today.
         throw new \LogicException('could not determine next birthday');
     }
+
+    /**
+     * Current age as of $today, given a birthdate. Used for the "Übersicht"
+     * page's age-structure chart, which is anchored on today rather than a
+     * future reminder/target date.
+     */
+    public function currentAge(int $month, int $day, int $year, DateTimeImmutable $today): int {
+        $age = (int)$today->format('Y') - $year;
+        $hadBirthdayThisYear = ((int)$today->format('n') > $month)
+            || ((int)$today->format('n') === $month && (int)$today->format('j') >= $day);
+        return $hadBirthdayThisYear ? $age : $age - 1;
+    }
+
+    /**
+     * Which 10-year age bucket an age falls into: 0 = "0-10", 1 = "11-20",
+     * 2 = "21-30", and so on. The first bucket is one wider (11 values) so
+     * the following ones can start on a clean decade boundary.
+     */
+    public function ageBucketIndex(int $age): int {
+        return $age <= 10 ? 0 : intdiv($age - 1, 10);
+    }
 }

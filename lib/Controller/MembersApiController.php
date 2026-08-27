@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace OCA\BirthdayReminder\Controller;
 
+use DateTimeImmutable;
 use OCA\BirthdayReminder\Db\Member;
 use OCA\BirthdayReminder\Db\MemberMapper;
 use OCA\BirthdayReminder\Db\ReminderLog;
 use OCA\BirthdayReminder\Db\ReminderLogMapper;
 use OCA\BirthdayReminder\Service\CsvImportService;
 use OCA\BirthdayReminder\Service\CsvParser;
+use OCA\BirthdayReminder\Service\ReminderCalculator;
 use OCA\BirthdayReminder\Service\ReminderService;
 use OCA\BirthdayReminder\Settings\AdminSettings;
 use OCP\AppFramework\Controller;
@@ -27,6 +29,7 @@ class MembersApiController extends Controller {
         private CsvParser $csvParser,
         private ReminderLogMapper $reminderLogMapper,
         private ReminderService $reminderService,
+        private ReminderCalculator $calculator,
     ) {
         parent::__construct($appName, $request);
     }
@@ -138,9 +141,30 @@ class MembersApiController extends Controller {
             }
         }
 
+        $activeMembers = $this->memberMapper->findAllActive();
+
         $monthCounts = array_fill(0, 12, 0);
-        foreach ($this->memberMapper->findAllActive() as $member) {
+        foreach ($activeMembers as $member) {
             $monthCounts[$member->getBirthMonth() - 1]++;
+        }
+
+        $todayForAge = new DateTimeImmutable('today');
+        $ageCounts = [];
+        $unknownAge = 0;
+        foreach ($activeMembers as $member) {
+            $year = $member->getBirthYear();
+            if ($year === null) {
+                $unknownAge++;
+                continue;
+            }
+            $age = max(0, $this->calculator->currentAge($member->getBirthMonth(), $member->getBirthDay(), $year, $todayForAge));
+            $bucket = $this->calculator->ageBucketIndex($age);
+            $ageCounts[$bucket] = ($ageCounts[$bucket] ?? 0) + 1;
+        }
+        $maxBucket = empty($ageCounts) ? -1 : max(array_keys($ageCounts));
+        $ageBuckets = [];
+        for ($i = 0; $i <= $maxBucket; $i++) {
+            $ageBuckets[] = $ageCounts[$i] ?? 0;
         }
 
         return new JSONResponse([
@@ -148,6 +172,8 @@ class MembersApiController extends Controller {
             'next7' => $next7,
             'next30' => $next30,
             'monthCounts' => $monthCounts,
+            'ageBuckets' => $ageBuckets,
+            'unknownAge' => $unknownAge,
         ]);
     }
 
