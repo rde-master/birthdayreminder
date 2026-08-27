@@ -64,6 +64,27 @@ Ursprünglich nutzte `MailService` `OCP\Mail\IEMailTemplate` (siehe unten, "Mail
 - Erinnerungs-Mail (Betreff **und** Text) nennt jetzt Geburtsdatum, Wochentag (`lib/Service/GermanDate.php`, reine Wochentag-Übersetzung ohne intl-Abhängigkeit) und Alter; ist kein Geburtsjahr hinterlegt, steht explizit „Alter unbekannt" statt es wegzulassen.
 - Neuer Platzhalter `{wochentag}` für die admin-editierbare Glückwunsch-Vorlage.
 
+## Erweiterung: Mitgliederseite als Sidebar-Navigation mit Übersicht/Diagrammen (M9)
+
+Die Mitgliederseite (`js/members.js`) wurde von einer langen Einzelseite auf ein Layout mit linker Seitenleiste umgebaut: oben ein Link zu „Persönliche Einstellungen", darunter die Navigation (Übersicht/Mitgliederliste/CSV-Import/Logs), unten ein Link zu „Admin-Einstellungen". Rechts daneben ein Content-Bereich, der das jeweils aktive Panel zeigt (`renderLayout()`/`activate()`); Mitgliederliste und Logs laden ihre Daten weiterhin erst beim ersten Aufruf des jeweiligen Panels.
+
+Die neue **Übersicht** zeigt drei Spalten (heute / nächste 7 Tage / nächste 30 Tage — nicht überlappend, via `ReminderService::getUpcomingBirthdaysWithinDays()` und `MembersApiController::getOverview()`) sowie zwei reine SVG-Diagramme ohne externe Bibliothek: ein Kreisdiagramm „Geburtstage pro Monat" und ein Balkendiagramm „Altersstruktur" (10er-Jahrgangs-Buckets, erste Bucket 0–10 elf Werte breit, danach 11–20/21–30/…; Mitglieder ohne Geburtsjahr landen sichtbar in einer eigenen „unbekannt"-Säule statt stillschweigend zu fehlen). Die Alters-Bucketing-Logik ist als reine, testbare Methoden `ReminderCalculator::currentAge()`/`ageBucketIndex()` implementiert statt direkt im Controller.
+
+## Erweiterung: Zugriffsrechte über zwei feste Gruppen (M9)
+
+Ursprünglich (M4) kontrollierte eine einzige, frei wählbare, per `occ admin-delegation:add` zugewiesene Gruppe sowohl das Mitgliederregister als auch die Admin-Einstellungen. Das wurde durch zwei feste, namentlich vorgegebene Gruppen ersetzt:
+
+- **„Geburtstagserinnerung Verantwortliche"** — nur das Mitgliederregister (Übersicht/Mitgliederliste/CSV-Import/Logs)
+- **„Geburtstagserinnerung Admin"** — zusätzlich die Admin-Einstellungen (Empfänger/Meilensteine/Mail-Vorlage/Zeitplan)
+- echte Nextcloud-Systemadmins haben immer beides
+- alle anderen Nutzer sehen nichts, auch keinen Menüeintrag
+
+Umgesetzt über zwei getrennte `IDelegatedSettings`-Klassen: `AdminSettings` (die echte, sichtbare Admin-Einstellungsseite, weiterhin nur an „Geburtstagserinnerung Admin" delegiert) und neu `MemberAreaAccess` (permission-only, keine eigene Seite — gleiches Muster wie `apps/webhook_listeners`, siehe Kommentar in `appinfo/info.xml` — an beide Gruppen delegiert). `PageController`/`MembersApiController` prüfen jetzt gegen `MemberAreaAccess::class`, `AdminApiController` unverändert gegen `AdminSettings::class`.
+
+Eine neue Migration (`Version1020Date20260827120000`) legt beide Gruppen beim `app:enable`/Upgrade automatisch (idempotent) über `IGroupManager::createGroup()` an; die eigentliche `occ admin-delegation:add`-Zuordnung bleibt bewusst ein manueller Schritt (siehe README.md), genau wie schon bei M4.
+
+Der Menüeintrag selbst wird **nicht mehr statisch** über `<navigations>` in `info.xml` deklariert (das wäre für jeden eingeloggten Nutzer sichtbar gewesen), sondern dynamisch über einen `LoadAdditionalEntriesEvent`-Listener (`lib/Listener/LoadNavigationEntryListener.php`, registriert in `Application::register()`) — nur wenn der Nutzer Systemadmin oder Mitglied einer der beiden Gruppen ist, wird `INavigationManager::add()` aufgerufen. Wichtige Falle dabei: der erste Versuch, das in `Application::boot()` zu prüfen, scheiterte, weil `boot()` läuft, bevor die Anmeldung des laufenden Requests aufgelöst ist — `IUserSession::getUser()` lieferte dort immer `null`. Das reale, aktuelle Vorbild für den korrekten Ansatz ist `apps/app_api`'s `LoadMenuEntriesListener`.
+
 ## Architektur-Überblick
 
 ```

@@ -5,7 +5,7 @@ Nextcloud-App für Vereine: verwaltet die Vereinsmitglieder in einem eigenen Mit
 - **Erinnerungs-Mails an Verantwortliche** zu frei konfigurierbaren Vorlaufzeiten (z.B. 30/14/2/1 Tage vorher + am Tag selbst)
 - **eine Glückwunsch-Mail direkt ans Mitglied**, sofern eine E-Mail-Adresse hinterlegt ist
 - optional einen **Geschenkvorschlag** bei runden Geburtstagen (frei definierbare Jubiläumsalter)
-- eine Übersicht der nächsten Geburtstage als **Dashboard-Widget**
+- eine Übersicht der nächsten Geburtstage als **Dashboard-Widget** sowie auf der Mitgliederseite selbst (inkl. Kreisdiagramm „Geburtstage pro Monat" und Balkendiagramm „Altersstruktur")
 
 Läuft komplett auf dem Nextcloud-Server selbst (eigener Background-Job, nutzt den bereits konfigurierten Mailer) — kein externes Skript, kein separater Cron-Eintrag, kein Node/Build-Schritt auf dem Server nötig.
 
@@ -24,6 +24,7 @@ Die Mitgliederdaten (Vorname, Nachname, Geburtsdatum, E-Mail, Deaktiviert-Schalt
 | M6 | Deploy auf die echte Vereins-Instanz | ⏳ offen |
 | M7 | Eigenes Mitgliederregister + CSV-Import (löst das Nextcloud-Adressbuch als Datenquelle ab) | ✅ fertig, verifiziert |
 | M8 | Konfigurierbare tägliche Prüfzeit, manueller Sofort-Versand, einsehbares/löschbares Versand-Log | ✅ fertig, verifiziert |
+| M9 | Mitgliederseite als Sidebar-Navigation (Übersicht mit Diagrammen/Mitgliederliste/CSV-Import/Logs); feste Zugriffsgruppen statt frei wählbarer Gruppe | ✅ fertig, verifiziert |
 
 „Verifiziert" heißt: Ende-zu-Ende live gegen eine echte Nextcloud-34-Testinstanz getestet — siehe [docs/plan.md](docs/plan.md) für die Details und den Architektur-Wechsel weg vom Adressbuch.
 
@@ -46,21 +47,34 @@ Die App registriert sich automatisch im vorhandenen Nextcloud-Cron (`cron.php`) 
 
 ## Einrichtung
 
-1. **Mitgliederregister** (eigenes Icon oben in der Nextcloud-Menüleiste) öffnen und Mitglieder erfassen — manuell oder per CSV-Import (siehe unten)
-2. **Einstellungen → Verwaltung → Geburtstagserinnerung** öffnen (als Nextcloud-Admin): Empfänger anlegen (Nextcloud-Nutzer, Gruppe oder feste E-Mail-Adresse) mit eigenen Vorlaufzeiten
+1. **Mitgliederregister** (eigenes Icon oben in der Nextcloud-Menüleiste, sichtbar für berechtigte Nutzer — siehe [Zugriffsrechte](#zugriffsrechte)) öffnen: dort **Übersicht** (anstehende Geburtstage + Diagramme), **Mitgliederliste** (Erfassen/Bearbeiten), **CSV-Import** und **Logs** über die linke Seitenleiste
+2. **Einstellungen → Verwaltung → Geburtstagserinnerung** öffnen (als Nextcloud-Admin oder Mitglied der Gruppe „Geburtstagserinnerung Admin"): Empfänger anlegen (Nextcloud-Nutzer, Gruppe oder feste E-Mail-Adresse) mit eigenen Vorlaufzeiten
 3. Optional: runde Geburtstage mit Geschenkvorschlag hinterlegen
 4. Optional: Text der Glückwunsch-Mail anpassen (Platzhalter `{name}`, `{vorname}`, `{alter}`, `{datum}`, `{wochentag}`)
 5. Im Bereich „Zeitplan & manueller Versand": Uhrzeit für die tägliche Prüfung einstellen (Standard 08:00). Dort auch zwei Buttons, um Erinnerungen bzw. Glückwünsche sofort manuell auszulösen (respektiert dieselbe Versand-Historie wie der automatische Lauf, also keine doppelten Mails), sowie ein Button zum vollständigen Löschen des Versand-Logs (Warnung: hebt die Duplikat-Sperre für den Tag auf)
 
-Das **Versand-Log** (Mitgliederseite, Bereich „Versand-Log", einblendbar) zeigt die letzten 200 tatsächlich verschickten Mails mit Mitgliedsname, Art, Vorlaufzeit, Bezugsjahr und Zeitpunkt — nützlich, um nachzuvollziehen, warum an einem Tag (nicht) verschickt wurde.
-
-Damit auch Nicht-Systemadmins (z.B. der Vorstand) Zugriff auf Mitgliederregister und Admin-Einstellungsseite bekommen, ohne volle Nextcloud-Admins zu sein:
-
-```bash
-php occ admin-delegation:add "OCA\BirthdayReminder\Settings\AdminSettings" <gruppen-id>
-```
+Das **Versand-Log** (Mitgliederseite, Bereich „Logs") zeigt die letzten 200 tatsächlich verschickten Mails mit Mitgliedsname, Art, Vorlaufzeit, Bezugsjahr und Zeitpunkt — nützlich, um nachzuvollziehen, warum an einem Tag (nicht) verschickt wurde.
 
 Jeder Nextcloud-Nutzer kann außerdem unter **Einstellungen → Geburtstagserinnerung** selbst festlegen, zu welchen Vorlaufzeiten (bzw. nur bei runden Geburtstagen) er erinnert werden möchte.
+
+### Zugriffsrechte
+
+Zwei feste Nextcloud-Gruppen steuern den Zugriff — beim ersten `app:enable` automatisch angelegt (leer, Mitglieder selbst über Einstellungen → Benutzer hinzufügen):
+
+| Gruppe | Mitgliederregister (Übersicht/Liste/CSV-Import/Logs) | Admin-Einstellungen (Empfänger/Meilensteine/Mail-Vorlage/Zeitplan) |
+|---|---|---|
+| `Geburtstagserinnerung Verantwortliche` | ✅ | ❌ |
+| `Geburtstagserinnerung Admin` | ✅ | ✅ |
+| echte Nextcloud-Systemadmins | ✅ | ✅ |
+| alle anderen Nutzer | ❌ (auch kein Menüeintrag sichtbar) | ❌ |
+
+Die Gruppen werden zwar automatisch angelegt, die eigentliche Berechtigung muss aber einmalig per SSH zugewiesen werden:
+
+```bash
+php occ admin-delegation:add "OCA\BirthdayReminder\Settings\MemberAreaAccess" "Geburtstagserinnerung Verantwortliche"
+php occ admin-delegation:add "OCA\BirthdayReminder\Settings\MemberAreaAccess" "Geburtstagserinnerung Admin"
+php occ admin-delegation:add "OCA\BirthdayReminder\Settings\AdminSettings" "Geburtstagserinnerung Admin"
+```
 
 ### CSV-Import
 
@@ -97,19 +111,21 @@ Es gibt keinen Frontend-Build-Schritt: `js/` und `css/` sind handgeschriebenes V
 ```
 appinfo/          info.xml, routes.php
 lib/
-  AppInfo/        Application.php (DI, Dashboard-Widget-Registrierung)
+  AppInfo/        Application.php (DI, Dashboard-Widget- + Event-Listener-Registrierung)
+  Listener/       LoadNavigationEntryListener (zeigt den Menüeintrag nur berechtigten Nutzern)
   BackgroundJob/  DailyReminderJob.php (stündliche Prüfung, Versand einmal täglich zur eingestellten Uhrzeit)
   Model/          Member.php (Wertobjekt für die Terminlogik)
   Db/             Member (Mitgliederregister) + Recipient/Offset/Milestone/ReminderLog + Mapper
-  Service/        ReminderCalculator (reine Terminlogik), ReminderService (Orchestrierung),
+  Service/        ReminderCalculator (reine Terminlogik inkl. Alters-Bucketing), ReminderService (Orchestrierung),
                   MailService, RecipientResolver, MailTemplateRenderer, ConfigService,
                   CsvParser/MemberSyncPlanner (reine CSV-Import-Logik), CsvImportService (Orchestrierung),
                   ScheduleGate (reine Logik: "ist die eingestellte Tageszeit erreicht?"),
                   GermanDate (reine Logik: deutsche Wochentagsnamen)
   Controller/      PageController (Mitgliederseite), MembersApiController, AdminApiController, PersonalApiController
-  Settings/        AdminSection/AdminSettings (IDelegatedSettings), PersonalSection/PersonalSettings
+  Settings/        AdminSection/AdminSettings (IDelegatedSettings, nur "Geburtstagserinnerung Admin"),
+                   MemberAreaSection/MemberAreaAccess (permission-only, beide Gruppen), PersonalSection/PersonalSettings
   Dashboard/       BirthdayWidget.php (IAPIWidgetV2)
-  Migration/       Datenbank-Schema (5 Tabellen)
+  Migration/       Datenbank-Schema (5 Tabellen) + automatisches Anlegen der beiden Zugriffsgruppen
   Command/         occ-Befehle für Debug/Verwaltung
 js/, css/, templates/   Vanilla-JS-Seiten (Mitgliederregister, Einstellungen) - kein Build-Schritt
 tests/Unit/             PHPUnit-Tests für die reine Logik
