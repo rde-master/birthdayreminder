@@ -5,10 +5,15 @@ declare(strict_types=1);
 namespace OCA\BirthdayReminder\Service;
 
 /**
- * Pure diffing logic for the CSV import - no I/O, no Nextcloud runtime
- * dependency, unit-testable. Matches members by first+last name (case-
- * insensitive), decides insert/update/leave-alone/disable, and never
- * re-enables a member automatically - only a human toggles that back on.
+ * Pure diffing logic for the CSV/Contacts import - no I/O, no Nextcloud
+ * runtime dependency, unit-testable. Matches members primarily by e-mail
+ * address (case-insensitive) when both sides have one - the more stable
+ * identity, and what prevents duplicate contacts on repeated Kontakte-
+ * Import/-Export round trips even if a display name changed slightly.
+ * Falls back to first+last name (case-insensitive) when no e-mail match is
+ * available, e.g. for CSV rows without an e-mail column. Decides
+ * insert/update/leave-alone/disable, and never re-enables a member
+ * automatically - only a human toggles that back on.
  */
 final class MemberSyncPlanner {
     public const AUTO_DISABLE_REMARK = 'Deaktiviert da bei Import nicht mehr vorhanden';
@@ -24,30 +29,39 @@ final class MemberSyncPlanner {
      * }
      */
     public function plan(array $existingMembers, array $parsedRows): array {
-        $existingByKey = [];
+        $existingByEmail = [];
+        $existingByName = [];
         foreach ($existingMembers as $member) {
-            $existingByKey[self::key($member['firstName'], $member['lastName'])] = $member;
+            if ($member['email'] !== null && $member['email'] !== '') {
+                $existingByEmail[self::emailKey($member['email'])] = $member;
+            }
+            $existingByName[self::nameKey($member['firstName'], $member['lastName'])] = $member;
         }
 
         $inserts = [];
         $updates = [];
-        $seenKeys = [];
+        $seenIds = [];
         $unchangedCount = 0;
 
         foreach ($parsedRows as $row) {
-            $key = self::key($row['firstName'], $row['lastName']);
-            $seenKeys[$key] = true;
-            $existing = $existingByKey[$key] ?? null;
+            $existing = null;
+            if ($row['email'] !== null && $row['email'] !== '') {
+                $existing = $existingByEmail[self::emailKey($row['email'])] ?? null;
+            }
+            $existing ??= $existingByName[self::nameKey($row['firstName'], $row['lastName'])] ?? null;
 
             if ($existing === null) {
                 $inserts[] = $row;
                 continue;
             }
 
+            $seenIds[$existing['id']] = true;
+
             if ($existing['birthDay'] === $row['birthDay']
                 && $existing['birthMonth'] === $row['birthMonth']
                 && $existing['birthYear'] === $row['birthYear']
-                && $existing['email'] === $row['email']
+                && self::emailsEqual($existing['email'], $row['email'])
+                && self::nameKey($existing['firstName'], $existing['lastName']) === self::nameKey($row['firstName'], $row['lastName'])
             ) {
                 $unchangedCount++;
                 continue;
@@ -66,8 +80,7 @@ final class MemberSyncPlanner {
 
         $disables = [];
         foreach ($existingMembers as $member) {
-            $key = self::key($member['firstName'], $member['lastName']);
-            if (isset($seenKeys[$key]) || $member['disabled']) {
+            if (isset($seenIds[$member['id']]) || $member['disabled']) {
                 continue;
             }
             $disables[] = [
@@ -95,7 +108,18 @@ final class MemberSyncPlanner {
         return $existingRemark . '; ' . self::AUTO_DISABLE_REMARK;
     }
 
-    private static function key(string $firstName, string $lastName): string {
+    private static function nameKey(string $firstName, string $lastName): string {
         return mb_strtolower(trim($firstName)) . '|' . mb_strtolower(trim($lastName));
+    }
+
+    private static function emailKey(string $email): string {
+        return mb_strtolower(trim($email));
+    }
+
+    private static function emailsEqual(?string $a, ?string $b): bool {
+        if ($a === null || $b === null) {
+            return $a === $b;
+        }
+        return self::emailKey($a) === self::emailKey($b);
     }
 }

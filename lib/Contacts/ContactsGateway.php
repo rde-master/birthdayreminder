@@ -74,9 +74,22 @@ final class ContactsGateway {
             throw new \RuntimeException('Kein beschreibbares persönliches Adressbuch gefunden. Lege in den Kontakten zuerst ein eigenes Adressbuch an.');
         }
 
+        // E-mail is the primary match key (same reasoning as the CSV/Contacts
+        // import's MemberSyncPlanner) - it's what keeps repeated exports from
+        // creating duplicate contacts even if a member's name changed since
+        // the last export. Falls back to full name only for contacts/members
+        // without an e-mail address.
+        $existingUriByEmail = [];
         $existingUriByName = [];
-        foreach ($target->search('', ['FN'], []) as $existing) {
-            if (is_string($existing['FN'] ?? null) && is_string($existing['URI'] ?? null)) {
+        foreach ($target->search('', ['FN', 'EMAIL'], []) as $existing) {
+            if (!is_string($existing['URI'] ?? null)) {
+                continue;
+            }
+            $email = $this->firstEmail($existing['EMAIL'] ?? null);
+            if ($email !== null && !isset($existingUriByEmail[mb_strtolower($email)])) {
+                $existingUriByEmail[mb_strtolower($email)] = $existing['URI'];
+            }
+            if (is_string($existing['FN'] ?? null)) {
                 $existingUriByName[mb_strtolower(trim($existing['FN']))] = $existing['URI'];
             }
         }
@@ -94,7 +107,10 @@ final class ContactsGateway {
                 $properties['EMAIL'] = $member->getEmail();
             }
 
-            $existingUri = $existingUriByName[mb_strtolower($fn)] ?? null;
+            $existingUri = $member->getEmail() !== null
+                ? ($existingUriByEmail[mb_strtolower($member->getEmail())] ?? $existingUriByName[mb_strtolower($fn)] ?? null)
+                : ($existingUriByName[mb_strtolower($fn)] ?? null);
+
             if ($existingUri !== null) {
                 $properties['URI'] = $existingUri;
                 $updated++;

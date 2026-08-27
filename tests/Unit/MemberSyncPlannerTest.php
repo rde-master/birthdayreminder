@@ -117,6 +117,73 @@ final class MemberSyncPlannerTest extends TestCase {
         self::assertCount(0, $plan['disables']);
     }
 
+    public function testMatchesByEmailEvenWhenNameDiffers(): void {
+        // Same person, contact was renamed - e-mail is the more stable identity.
+        $plan = $this->planner->plan(
+            [$this->existing(1, 'Anna', 'Muster', ['email' => 'anna@example.test'])],
+            [$this->row('Anne', 'Neuname', ['email' => 'anna@example.test'])]
+        );
+
+        self::assertCount(0, $plan['inserts']);
+        self::assertCount(1, $plan['updates']);
+        self::assertSame(1, $plan['updates'][0]['id']);
+        self::assertSame('Anne', $plan['updates'][0]['firstName']);
+        self::assertSame('Neuname', $plan['updates'][0]['lastName']);
+    }
+
+    public function testEmailMatchTakesPriorityOverNameMatch(): void {
+        // Two existing members; the row's name matches #2 but its e-mail
+        // matches #1 - e-mail wins, so #1 gets updated and #2 gets disabled
+        // (not touched/left alone, which the old name-only matching would have done).
+        $plan = $this->planner->plan(
+            [
+                $this->existing(1, 'Anna', 'Alt', ['email' => 'shared@example.test']),
+                $this->existing(2, 'Bernd', 'Neu', ['email' => 'bernd@example.test']),
+            ],
+            [$this->row('Bernd', 'Neu', ['email' => 'shared@example.test'])]
+        );
+
+        self::assertCount(1, $plan['updates']);
+        self::assertSame(1, $plan['updates'][0]['id']);
+        self::assertCount(1, $plan['disables']);
+        self::assertSame(2, $plan['disables'][0]['id']);
+    }
+
+    public function testFallsBackToNameMatchWhenRowHasNoEmail(): void {
+        $plan = $this->planner->plan(
+            [$this->existing(1, 'Anna', 'Muster', ['email' => 'anna@example.test'])],
+            [$this->row('Anna', 'Muster', ['email' => null])]
+        );
+
+        self::assertCount(0, $plan['inserts']);
+        self::assertCount(1, $plan['updates']);
+        self::assertNull($plan['updates'][0]['email']);
+    }
+
+    public function testEmailMatchingIsCaseInsensitive(): void {
+        $plan = $this->planner->plan(
+            [$this->existing(1, 'Anna', 'Muster', ['email' => 'Anna@Example.test'])],
+            [$this->row('Anna', 'Muster', ['email' => 'anna@example.test'])]
+        );
+
+        self::assertSame(1, $plan['unchangedCount']);
+    }
+
+    public function testDuplicateEmailInSameBatchUpdatesSameMemberInsteadOfInserting(): void {
+        $plan = $this->planner->plan(
+            [$this->existing(1, 'Anna', 'Muster', ['email' => 'anna@example.test'])],
+            [
+                $this->row('Anna', 'Muster', ['email' => 'anna@example.test', 'birthDay' => 16]),
+                $this->row('Anna', 'M.', ['email' => 'anna@example.test', 'birthDay' => 17]),
+            ]
+        );
+
+        self::assertCount(0, $plan['inserts']);
+        self::assertCount(2, $plan['updates']);
+        self::assertSame(1, $plan['updates'][0]['id']);
+        self::assertSame(1, $plan['updates'][1]['id']);
+    }
+
     public function testReappearingDisabledMemberIsNotAutomaticallyReenabled(): void {
         // Explicitly documents the conservative behaviour: import only ever
         // disables, it never flips disabled back to false on its own. Field
