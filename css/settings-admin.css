@@ -32,6 +32,20 @@
 	margin-bottom: 0.75em;
 }
 
+/*
+ * Force light native rendering for these checkboxes: with the system/
+ * Nextcloud in dark mode, an unstyled checkbox otherwise picks up the
+ * browser's dark native widget style, which renders the unchecked box as
+ * solid black (same fix as .birthdayreminder-members-table in members.css).
+ */
+.birthdayreminder-section input[type="checkbox"] {
+	color-scheme: light;
+	width: 1.2em;
+	height: 1.2em;
+	cursor: pointer;
+	vertical-align: middle;
+}
+
 .birthdayreminder-table-wrap {
 	width: 100%;
 	overflow-x: auto;

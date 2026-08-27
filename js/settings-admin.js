@@ -354,9 +354,20 @@
 		var saveButton = el('button', { type: 'button', class: 'button primary', text: t('Speichern') });
 		var scheduleStatus = el('span', { class: 'birthdayreminder-status' });
 
+		var remindersEnabledCheckbox = el('input', { type: 'checkbox', id: 'birthdayreminder-reminders-enabled' });
+		var remindersEnabledLabel = el('label', { for: 'birthdayreminder-reminders-enabled' }, [
+			remindersEnabledCheckbox, document.createTextNode(' ' + t('Erinnerungs-Mails an Verantwortliche aktiv')),
+		]);
+		var congratsEnabledCheckbox = el('input', { type: 'checkbox', id: 'birthdayreminder-congrats-enabled' });
+		var congratsEnabledLabel = el('label', { for: 'birthdayreminder-congrats-enabled' }, [
+			congratsEnabledCheckbox, document.createTextNode(' ' + t('Glückwunsch-Mails an Mitglieder aktiv')),
+		]);
+
 		function loadSchedule() {
 			api('GET', '/admin/schedule').then(function (data) {
 				timeInput.value = data.dailyRunTime;
+				remindersEnabledCheckbox.checked = data.remindersEnabled;
+				congratsEnabledCheckbox.checked = data.congratsEnabled;
 				scheduleStatus.textContent = data.lastRunDate
 					? t('Letzter automatischer Lauf: ') + data.lastRunDate
 					: t('Bisher noch kein automatischer Lauf erfolgt.');
@@ -367,7 +378,11 @@
 			if (!timeInput.value) {
 				return;
 			}
-			api('POST', '/admin/schedule', { dailyRunTime: timeInput.value }).then(function () {
+			api('POST', '/admin/schedule', {
+				dailyRunTime: timeInput.value,
+				remindersEnabled: remindersEnabledCheckbox.checked,
+				congratsEnabled: congratsEnabledCheckbox.checked,
+			}).then(function () {
 				scheduleStatus.textContent = t('Gespeichert.');
 			}).catch(function (err) {
 				scheduleStatus.textContent = String(err.message || err);
@@ -380,6 +395,12 @@
 		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [timeInput, saveButton]));
 		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [scheduleStatus]));
 
+		wrap.appendChild(el('label', { class: 'birthdayreminder-field-label', text: t('E-Mail-Versand') }));
+		wrap.appendChild(el('p', { class: 'birthdayreminder-hint', text: t('Schaltet jeweils den kompletten Versand ab - automatisch wie manuell -, ohne die hinterlegten Empfänger, Vorlaufzeiten oder Mitglieder zu verändern.') }));
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [remindersEnabledLabel]));
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [congratsEnabledLabel]));
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [saveButton]));
+
 		wrap.appendChild(el('label', { class: 'birthdayreminder-field-label', text: t('Manuell auslösen') }));
 		wrap.appendChild(el('p', { class: 'birthdayreminder-hint', text: t('Verschickt sofort, was heute laut Vorlaufzeiten/Geburtstagen fällig ist - unabhängig von der oben eingestellten Uhrzeit. Bereits heute verschickte Mails werden dabei nicht doppelt versendet.') }));
 
@@ -390,8 +411,10 @@
 				return;
 			}
 			remindersStatus.textContent = t('Wird versendet …');
-			api('POST', '/admin/trigger-reminders', {}).then(function () {
-				remindersStatus.textContent = t('Erledigt.');
+			api('POST', '/admin/trigger-reminders', {}).then(function (res) {
+				remindersStatus.textContent = res.skippedDisabled
+					? t('Übersprungen: Erinnerungs-Mails sind aktuell deaktiviert.')
+					: t('Erledigt.');
 			}).catch(function (err) {
 				remindersStatus.textContent = String(err.message || err);
 			});
@@ -404,8 +427,10 @@
 				return;
 			}
 			congratsStatus.textContent = t('Wird versendet …');
-			api('POST', '/admin/trigger-congrats', {}).then(function () {
-				congratsStatus.textContent = t('Erledigt.');
+			api('POST', '/admin/trigger-congrats', {}).then(function (res) {
+				congratsStatus.textContent = res.skippedDisabled
+					? t('Übersprungen: Glückwunsch-Mails sind aktuell deaktiviert.')
+					: t('Erledigt.');
 			}).catch(function (err) {
 				congratsStatus.textContent = String(err.message || err);
 			});

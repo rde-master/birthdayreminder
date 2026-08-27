@@ -22,6 +22,7 @@ Die Mitgliederdaten (Vorname, Nachname, Geburtsdatum, E-Mail, Deaktiviert-Schalt
 - **Runde Geburtstage** mit admin-konfigurierbarem Geschenkvorschlag, der automatisch in die Erinnerungs-Mail übernommen wird
 - **Admin-editierbare Glückwunsch-Mail-Vorlage** mit Platzhaltern (Name, Alter, Datum, Wochentag)
 - **Konfigurierbare tägliche Prüfzeit** sowie ein manueller Sofort-Versand für Erinnerungen und Glückwünsche, unabhängig voneinander auslösbar
+- **Erinnerungs- bzw. Glückwunsch-Mails jeweils komplett deaktivierbar**, ohne Empfänger, Vorlaufzeiten oder Mitglieder zu verändern
 - **Dashboard-Widget** mit den nächsten anstehenden Geburtstagen
 - **Zwei feste Zugriffsgruppen**, unabhängig von vollen Nextcloud-Systemadmin-Rechten (siehe [Zugriffsrechte](#zugriffsrechte))
 
@@ -42,13 +43,28 @@ php occ app:enable birthdayreminder
 
 Die App registriert sich automatisch im vorhandenen Nextcloud-Cron (`cron.php`) — es ist **kein zusätzlicher Cron-Job** nötig.
 
+## Update
+
+```bash
+cd apps/birthdayreminder
+git pull
+
+# fuehrt eine eventuell neue Datenbank-Migration aus (z.B. neue Tabellen/Spalten)
+php occ app:disable birthdayreminder
+php occ app:enable birthdayreminder
+```
+
+Bestehende Daten und Einstellungen (Mitglieder, Empfänger, Vorlaufzeiten, Vorlagen, Zeitplan, Zugriffsgruppen-Zuordnung) bleiben beim Update erhalten — `app:disable`/`app:enable` löscht nichts, sondern prüft nur, ob eine der Migrationen unter `lib/Migration/` noch aussteht und führt sie aus.
+
+Empfehlenswert vor größeren Updates: ein Datenbank-Backup der Nextcloud-Instanz (Standard-Nextcloud-Praxis, nicht app-spezifisch). Bei Datenbank-Problemen nach einem Update hilft `php occ app:disable birthdayreminder` als erster Schritt, um die App vorübergehend aus dem Cron/Seitenaufbau zu nehmen, ohne Daten zu verlieren.
+
 ## Einrichtung
 
 1. **Mitgliederregister** (eigenes Icon oben in der Nextcloud-Menüleiste, sichtbar für berechtigte Nutzer — siehe [Zugriffsrechte](#zugriffsrechte)) öffnen: dort **Übersicht**, **Mitgliederliste**, **Import/Export**, **Geschenke** und **Logs** über die linke Seitenleiste
 2. **Einstellungen → Verwaltung → Geburtstagserinnerung** öffnen (als Nextcloud-Admin oder Mitglied der Gruppe „Geburtstagserinnerung Admin"): Empfänger anlegen (Nextcloud-Nutzer, Gruppe oder feste E-Mail-Adresse) mit eigenen Vorlaufzeiten
 3. Optional: runde Geburtstage mit Geschenkvorschlag hinterlegen
 4. Optional: Text der Glückwunsch-Mail anpassen (Platzhalter `{name}`, `{vorname}`, `{alter}`, `{datum}`, `{wochentag}`)
-5. Im Bereich „Zeitplan & manueller Versand": Uhrzeit für die tägliche Prüfung einstellen (Standard 08:00). Dort auch zwei Buttons, um Erinnerungen bzw. Glückwünsche sofort manuell auszulösen (respektiert dieselbe Versand-Historie wie der automatische Lauf, also keine doppelten Mails), sowie ein Button zum vollständigen Löschen des Versand-Logs (Warnung: hebt die Duplikat-Sperre für den Tag auf)
+5. Im Bereich „Zeitplan & manueller Versand": Uhrzeit für die tägliche Prüfung einstellen (Standard 08:00), sowie je ein Schalter, um Erinnerungs- bzw. Glückwunsch-Mails komplett zu deaktivieren (z.B. während einer Testphase) — betrifft automatischen wie manuellen Versand gleichermaßen, ohne Empfänger/Vorlaufzeiten/Mitglieder zu verändern. Dort auch zwei Buttons, um Erinnerungen bzw. Glückwünsche sofort manuell auszulösen (respektiert dieselbe Versand-Historie wie der automatische Lauf, also keine doppelten Mails), sowie ein Button zum vollständigen Löschen des Versand-Logs (Warnung: hebt die Duplikat-Sperre für den Tag auf)
 
 Jeder Nextcloud-Nutzer kann außerdem unter **Einstellungen → Geburtstagserinnerung** selbst festlegen, zu welchen Vorlaufzeiten (bzw. nur bei runden Geburtstagen) er erinnert werden möchte.
 

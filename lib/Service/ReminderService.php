@@ -97,8 +97,15 @@ final class ReminderService {
      * button in the admin UI, and internally by run(). Shares the exact
      * same idempotency log as the scheduled job, so a manual trigger never
      * causes a duplicate send later that day (or vice versa).
+     *
+     * @return bool false if skipped because reminder mails are globally disabled
      */
-    public function runReminders(?DateTimeImmutable $today = null): void {
+    public function runReminders(?DateTimeImmutable $today = null): bool {
+        if (!$this->configService->getRemindersEnabled()) {
+            $this->logger->info('birthdayreminder: reminder mails are disabled, skipping run');
+            return false;
+        }
+
         $today ??= new DateTimeImmutable('today');
         $context = $this->buildContext($today);
 
@@ -110,16 +117,26 @@ final class ReminderService {
                 $context['milestoneAges']
             );
         }
+
+        return true;
     }
 
     /**
      * Only the congratulation mails to today's members - used by the "jetzt
      * versenden" button in the admin UI, and internally by run().
+     *
+     * @return bool false if skipped because congrats mails are globally disabled
      */
-    public function runCongrats(?DateTimeImmutable $today = null): void {
+    public function runCongrats(?DateTimeImmutable $today = null): bool {
+        if (!$this->configService->getCongratsEnabled()) {
+            $this->logger->info('birthdayreminder: congrats mails are disabled, skipping run');
+            return false;
+        }
+
         $today ??= new DateTimeImmutable('today');
         $context = $this->buildContext($today);
         $this->sendCongratulations($context['matchesByOffset'][0] ?? []);
+        return true;
     }
 
     /**

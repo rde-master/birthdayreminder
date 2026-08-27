@@ -40,6 +40,8 @@ class AdminSettings implements IDelegatedSettings {
                 '/congrats_subject_template/',
                 '/congrats_body_template/',
                 '/daily_run_time/',
+                '/reminders_enabled/',
+                '/congrats_enabled/',
             ],
         ];
     }

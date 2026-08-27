@@ -15,6 +15,8 @@ final class ConfigService {
     private const KEY_CONGRATS_BODY = 'congrats_body_template';
     private const KEY_DAILY_RUN_TIME = 'daily_run_time';
     private const KEY_LAST_RUN_DATE = 'last_run_date';
+    private const KEY_REMINDERS_ENABLED = 'reminders_enabled';
+    private const KEY_CONGRATS_ENABLED = 'congrats_enabled';
 
     public const DEFAULT_CONGRATS_SUBJECT = 'Herzlichen Glückwunsch zum Geburtstag, {vorname}!';
     public const DEFAULT_CONGRATS_BODY = "Liebe/r {vorname},\n\nwir wünschen dir alles Gute zu deinem {alter}. Geburtstag am {datum}!\n\nHerzliche Grüße";
@@ -58,5 +60,23 @@ final class ConfigService {
 
     public function setCongratsBodyTemplate(string $template): void {
         $this->appConfig->setValueString(Application::APP_ID, self::KEY_CONGRATS_BODY, $template);
+    }
+
+    /** Global on/off switch for reminder mails to Verantwortliche - independent of individual recipients/offsets. */
+    public function getRemindersEnabled(): bool {
+        return $this->appConfig->getValueBool(Application::APP_ID, self::KEY_REMINDERS_ENABLED, true);
+    }
+
+    public function setRemindersEnabled(bool $enabled): void {
+        $this->appConfig->setValueBool(Application::APP_ID, self::KEY_REMINDERS_ENABLED, $enabled);
+    }
+
+    /** Global on/off switch for congratulation mails to members - independent of individual member e-mail addresses. */
+    public function getCongratsEnabled(): bool {
+        return $this->appConfig->getValueBool(Application::APP_ID, self::KEY_CONGRATS_ENABLED, true);
+    }
+
+    public function setCongratsEnabled(bool $enabled): void {
+        $this->appConfig->setValueBool(Application::APP_ID, self::KEY_CONGRATS_ENABLED, $enabled);
     }
 }

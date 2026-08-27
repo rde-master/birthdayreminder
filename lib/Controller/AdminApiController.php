@@ -154,30 +154,34 @@ class AdminApiController extends Controller {
         return new JSONResponse([
             'dailyRunTime' => $this->configService->getDailyRunTime(),
             'lastRunDate' => $this->configService->getLastRunDate(),
+            'remindersEnabled' => $this->configService->getRemindersEnabled(),
+            'congratsEnabled' => $this->configService->getCongratsEnabled(),
         ]);
     }
 
     #[AuthorizedAdminSetting(settings: AdminSettings::class)]
-    public function saveSchedule(string $dailyRunTime): JSONResponse {
+    public function saveSchedule(string $dailyRunTime, bool $remindersEnabled, bool $congratsEnabled): JSONResponse {
         if (preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $dailyRunTime) !== 1) {
             return new JSONResponse(['error' => 'Ungültige Uhrzeit (Format HH:MM erwartet)'], 400);
         }
         $this->configService->setDailyRunTime($dailyRunTime);
+        $this->configService->setRemindersEnabled($remindersEnabled);
+        $this->configService->setCongratsEnabled($congratsEnabled);
         return new JSONResponse(['ok' => true]);
     }
 
     #[AuthorizedAdminSetting(settings: AdminSettings::class)]
     public function triggerReminders(): JSONResponse {
         $this->logger->info('birthdayreminder: manual trigger - reminders');
-        $this->reminderService->runReminders();
-        return new JSONResponse(['ok' => true]);
+        $ran = $this->reminderService->runReminders();
+        return new JSONResponse(['ok' => true, 'skippedDisabled' => !$ran]);
     }
 
     #[AuthorizedAdminSetting(settings: AdminSettings::class)]
     public function triggerCongrats(): JSONResponse {
         $this->logger->info('birthdayreminder: manual trigger - congrats');
-        $this->reminderService->runCongrats();
-        return new JSONResponse(['ok' => true]);
+        $ran = $this->reminderService->runCongrats();
+        return new JSONResponse(['ok' => true, 'skippedDisabled' => !$ran]);
     }
 
     #[AuthorizedAdminSetting(settings: AdminSettings::class)]
