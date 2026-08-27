@@ -111,7 +111,9 @@ class MembersApiController extends Controller {
 
     /**
      * Upcoming birthdays of active members, bucketed into "today" / "next 7
-     * days" / "next 30 days" (non-overlapping) for the Übersicht page.
+     * days" / "next 30 days" (non-overlapping), plus a per-month birthday
+     * count (index 0 = January) across all active members - for the
+     * Übersicht page.
      */
     #[AuthorizedAdminSetting(settings: AdminSettings::class)]
     public function getOverview(): JSONResponse {
@@ -136,7 +138,17 @@ class MembersApiController extends Controller {
             }
         }
 
-        return new JSONResponse(['today' => $today, 'next7' => $next7, 'next30' => $next30]);
+        $monthCounts = array_fill(0, 12, 0);
+        foreach ($this->memberMapper->findAllActive() as $member) {
+            $monthCounts[$member->getBirthMonth() - 1]++;
+        }
+
+        return new JSONResponse([
+            'today' => $today,
+            'next7' => $next7,
+            'next30' => $next30,
+            'monthCounts' => $monthCounts,
+        ]);
     }
 
     #[AuthorizedAdminSetting(settings: AdminSettings::class)]

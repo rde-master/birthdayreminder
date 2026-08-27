@@ -79,6 +79,81 @@
 		return col;
 	}
 
+	// ---- Übersicht: pie chart of birthdays per month --------------------
+
+	var MONTH_NAMES = [
+		t('Januar'), t('Februar'), t('März'), t('April'), t('Mai'), t('Juni'),
+		t('Juli'), t('August'), t('September'), t('Oktober'), t('November'), t('Dezember'),
+	];
+
+	function monthColor(i) {
+		return 'hsl(' + (i * 30) + ', 65%, 55%)';
+	}
+
+	function svgEl(tag, attrs) {
+		var node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+		Object.keys(attrs || {}).forEach(function (key) {
+			node.setAttribute(key, attrs[key]);
+		});
+		return node;
+	}
+
+	function polarToCartesian(cx, cy, r, angleDeg) {
+		var rad = (angleDeg - 90) * Math.PI / 180;
+		return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+	}
+
+	function describeArcPath(cx, cy, r, startAngle, endAngle) {
+		var start = polarToCartesian(cx, cy, r, startAngle);
+		var end = polarToCartesian(cx, cy, r, endAngle);
+		var largeArcFlag = (endAngle - startAngle) > 180 ? '1' : '0';
+		return ['M', cx, cy, 'L', start.x, start.y, 'A', r, r, 0, largeArcFlag, 1, end.x, end.y, 'Z'].join(' ');
+	}
+
+	function renderMonthChart(monthCounts) {
+		var wrap = el('div', { class: 'birthdayreminder-chart-container' });
+		var total = monthCounts.reduce(function (a, b) { return a + b; }, 0);
+
+		if (total === 0) {
+			wrap.appendChild(el('p', { class: 'birthdayreminder-status', text: t('Keine Mitglieder mit hinterlegtem Geburtsdatum.') }));
+			return wrap;
+		}
+
+		var size = 220;
+		var r = size / 2;
+		var svg = svgEl('svg', { viewBox: '0 0 ' + size + ' ' + size, class: 'birthdayreminder-piechart' });
+
+		var monthsWithData = monthCounts.reduce(function (n, c) { return c > 0 ? n + 1 : n; }, 0);
+		if (monthsWithData === 1) {
+			var onlyIndex = monthCounts.findIndex(function (c) { return c > 0; });
+			svg.appendChild(svgEl('circle', { cx: r, cy: r, r: r, fill: monthColor(onlyIndex) }));
+		} else {
+			var angle = 0;
+			monthCounts.forEach(function (count, i) {
+				if (count === 0) {
+					return;
+				}
+				var slice = (count / total) * 360;
+				svg.appendChild(svgEl('path', { d: describeArcPath(r, r, r, angle, angle + slice), fill: monthColor(i) }));
+				angle += slice;
+			});
+		}
+		wrap.appendChild(svg);
+
+		var legend = el('ul', { class: 'birthdayreminder-chart-legend' });
+		monthCounts.forEach(function (count, i) {
+			if (count === 0) {
+				return;
+			}
+			var swatch = el('span', { class: 'birthdayreminder-chart-swatch' });
+			swatch.style.backgroundColor = monthColor(i);
+			legend.appendChild(el('li', {}, [swatch, document.createTextNode(MONTH_NAMES[i] + ': ' + count)]));
+		});
+		wrap.appendChild(legend);
+
+		return wrap;
+	}
+
 	function renderOverview(root) {
 		var wrap = section(t('Übersicht'));
 		wrap.appendChild(el('p', {
@@ -86,16 +161,23 @@
 		}));
 		var columnsWrap = el('div', { class: 'birthdayreminder-overview-columns' });
 		wrap.appendChild(columnsWrap);
+
+		wrap.appendChild(el('h4', { class: 'birthdayreminder-chart-heading', text: t('Geburtstage pro Monat') }));
+		var chartWrap = el('div');
+		wrap.appendChild(chartWrap);
+
 		root.appendChild(wrap);
 
 		function load() {
 			columnsWrap.innerHTML = '';
 			columnsWrap.appendChild(el('p', { class: 'birthdayreminder-status', text: t('Lade …') }));
+			chartWrap.innerHTML = '';
 			api('GET', '/admin/overview').then(function (data) {
 				columnsWrap.innerHTML = '';
 				columnsWrap.appendChild(renderOverviewColumn(t('Heute'), data.today));
 				columnsWrap.appendChild(renderOverviewColumn(t('In den nächsten 7 Tagen'), data.next7));
 				columnsWrap.appendChild(renderOverviewColumn(t('In den nächsten 30 Tagen'), data.next30));
+				chartWrap.appendChild(renderMonthChart(data.monthCounts));
 			}).catch(function (err) {
 				columnsWrap.innerHTML = '';
 				columnsWrap.appendChild(el('p', { class: 'birthdayreminder-status', text: String(err.message || err) }));

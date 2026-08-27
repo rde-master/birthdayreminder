@@ -81,6 +81,48 @@
 	border-bottom: 1px solid var(--color-border, #eee);
 }
 
+.birthdayreminder-chart-heading {
+	font-size: 1em;
+	font-weight: bold;
+	margin: 2em 0 0.75em;
+}
+
+.birthdayreminder-chart-container {
+	display: flex;
+	align-items: center;
+	gap: 2em;
+	flex-wrap: wrap;
+}
+
+.birthdayreminder-piechart {
+	width: 220px;
+	height: 220px;
+	flex: 0 0 auto;
+}
+
+.birthdayreminder-chart-legend {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.4em;
+}
+
+.birthdayreminder-chart-legend li {
+	display: flex;
+	align-items: center;
+	gap: 0.5em;
+}
+
+.birthdayreminder-chart-swatch {
+	display: inline-block;
+	width: 0.9em;
+	height: 0.9em;
+	border-radius: 2px;
+	flex: 0 0 auto;
+}
+
 @media (max-width: 700px) {
 	.birthdayreminder-layout {
 		flex-direction: column;
@@ -104,6 +146,11 @@
 
 	.birthdayreminder-overview-columns {
 		grid-template-columns: 1fr;
+	}
+
+	.birthdayreminder-chart-container {
+		flex-direction: column;
+		align-items: flex-start;
 	}
 }
 
