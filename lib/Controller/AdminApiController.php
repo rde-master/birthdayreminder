@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\BirthdayReminder\Controller;
 
+use OCA\BirthdayReminder\AppInfo\Application;
 use OCA\BirthdayReminder\Db\Milestone;
 use OCA\BirthdayReminder\Db\MilestoneMapper;
 use OCA\BirthdayReminder\Db\OffsetMapper;
@@ -18,6 +19,7 @@ use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http\Attribute\AuthorizedAdminSetting;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IRequest;
+use OCP\IURLGenerator;
 use Psr\Log\LoggerInterface;
 
 class AdminApiController extends Controller {
@@ -31,6 +33,7 @@ class AdminApiController extends Controller {
         private ReminderService $reminderService,
         private ReminderLogMapper $reminderLogMapper,
         private LoggerInterface $logger,
+        private IURLGenerator $urlGenerator,
     ) {
         parent::__construct($appName, $request);
     }
@@ -170,6 +173,28 @@ class AdminApiController extends Controller {
         $this->configService->setRemindersEnabled($remindersEnabled);
         $this->configService->setCongratsEnabled($congratsEnabled);
         return new JSONResponse(['ok' => true]);
+    }
+
+    /**
+     * URL for the external, token-protected cron trigger (CronTriggerController)
+     * - an alternative to Nextcloud's own background-job queue, for hosts whose
+     * cron feature can only call a URL (see class doc on CronTriggerController).
+     */
+    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
+    public function getCronTriggerUrl(): JSONResponse {
+        return new JSONResponse(['url' => $this->buildCronTriggerUrl($this->configService->getCronTriggerToken())]);
+    }
+
+    #[AuthorizedAdminSetting(settings: AdminSettings::class)]
+    public function regenerateCronTriggerToken(): JSONResponse {
+        $token = $this->configService->regenerateCronTriggerToken();
+        return new JSONResponse(['url' => $this->buildCronTriggerUrl($token)]);
+    }
+
+    private function buildCronTriggerUrl(string $token): string {
+        return $this->urlGenerator->getAbsoluteURL(
+            $this->urlGenerator->linkToRoute(Application::APP_ID . '.cronTrigger.trigger', ['token' => $token])
+        );
     }
 
     #[AuthorizedAdminSetting(settings: AdminSettings::class)]

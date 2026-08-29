@@ -475,6 +475,46 @@
 		root.appendChild(wrap);
 	}
 
+	// ---- External cron-trigger URL (alternative to Nextclouds Job-Warteschlange) ----
+
+	function renderCronTrigger(root) {
+		var wrap = section(t('Externer Cron-Aufruf (Alternative zur Nextcloud-Job-Warteschlange)'));
+		wrap.appendChild(el('p', {
+			text: t('Nextclouds eigener Hintergrund-Job-Mechanismus verarbeitet pro Aufruf oft nur einen von vielen Jobs aller installierten Apps - bei Hosting-Anbietern, die als Cronjob nur einen URL-Aufruf erlauben (z.B. All-Inkl, kein echter Kommandozeilen-Cron), kann die tägliche Prüfung dadurch stark verzögert werden, weil sie hinter den Jobs anderer Apps in der Warteschlange steht. Diese URL umgeht das komplett: Sie prüft direkt und unabhängig von der oben eingestellten "Tägliche Prüfzeit", ob heute schon versendet wurde, und verschickt andernfalls sofort - die Zeitsteuerung übernimmst du dann selbst über den Zeitpunkt, den du beim Hosting-Anbieter für den Cronjob einstellst. Richte dort einen Cronjob ein, der diese URL regelmäßig aufruft (z.B. alle 5-15 Minuten). Die normale, interne Prüfung oben bleibt zusätzlich unverändert aktiv - beide zusammen sind sicher, da doppelter Versand am selben Tag immer verhindert wird.'),
+		}));
+
+		var urlInput = el('input', { type: 'text', readonly: 'readonly', style: 'width:100%' });
+		urlInput.addEventListener('click', function () { urlInput.select(); });
+		var regenerateButton = el('button', { type: 'button', class: 'button', text: t('Token neu generieren') });
+		var status = el('span', { class: 'birthdayreminder-status' });
+
+		function load() {
+			api('GET', '/admin/cron-trigger-url').then(function (data) {
+				urlInput.value = data.url;
+			}).catch(showError);
+		}
+
+		regenerateButton.addEventListener('click', function () {
+			if (!window.confirm(t('Token wirklich neu generieren? Die bisherige URL funktioniert danach nicht mehr - der Cronjob beim Hosting-Anbieter muss dann mit der neuen URL aktualisiert werden.'))) {
+				return;
+			}
+			api('POST', '/admin/cron-trigger-url/regenerate', {}).then(function (data) {
+				urlInput.value = data.url;
+				status.textContent = t('Neu generiert.');
+			}).catch(function (err) {
+				status.textContent = String(err.message || err);
+			});
+		});
+
+		load();
+
+		wrap.appendChild(el('label', { class: 'birthdayreminder-field-label', text: t('Trigger-URL') }));
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [urlInput]));
+		wrap.appendChild(el('div', { class: 'birthdayreminder-row' }, [regenerateButton, status]));
+
+		root.appendChild(wrap);
+	}
+
 	function t(text) {
 		return (window.t && window.OC) ? OC.L10N.translate('birthdayreminder', text) : text;
 	}
@@ -499,5 +539,6 @@
 		renderMilestones(root);
 		renderCongratsTemplate(root);
 		renderSchedule(root);
+		renderCronTrigger(root);
 	});
 })();

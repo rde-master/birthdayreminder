@@ -23,6 +23,7 @@ Die Mitgliederdaten (Vorname, Nachname, Geburtsdatum, E-Mail, Deaktiviert-Schalt
 - **Admin-editierbare Glückwunsch-Mail-Vorlage** mit Platzhaltern (Name, Alter, Datum, Wochentag)
 - **Konfigurierbare tägliche Prüfzeit** sowie ein manueller Sofort-Versand für Erinnerungen und Glückwünsche, unabhängig voneinander auslösbar
 - **Erinnerungs- bzw. Glückwunsch-Mails jeweils komplett deaktivierbar**, ohne Empfänger, Vorlaufzeiten oder Mitglieder zu verändern
+- **Externe, token-geschützte Cron-Trigger-URL** als Alternative zu Nextclouds eigener Job-Warteschlange (siehe [Externer Cron-Aufruf](#externer-cron-aufruf))
 - **Dashboard-Widget** mit den nächsten anstehenden Geburtstagen
 - **Zwei feste Zugriffsgruppen**, unabhängig von vollen Nextcloud-Systemadmin-Rechten (siehe [Zugriffsrechte](#zugriffsrechte))
 
@@ -87,6 +88,12 @@ php occ admin-delegation:add "OCA\BirthdayReminder\Settings\MemberAreaAccess" "G
 php occ admin-delegation:add "OCA\BirthdayReminder\Settings\AdminSettings" "Geburtstagserinnerung Admin"
 ```
 
+### Externer Cron-Aufruf
+
+Nextclouds eigener Hintergrund-Job-Mechanismus verarbeitet pro Aufruf oft nur **einen** von vielen fälligen Jobs aller installierten Apps. Bei Hosting-Anbietern, die als Cronjob nur einen URL-Aufruf erlauben statt eines echten Kommandozeilen-Crons (z.B. All-Inkl), kann das dazu führen, dass die tägliche Prüfung durch die Konkurrenz mit Dutzenden anderer Jobs stark verzögert wird, statt zur eingestellten Uhrzeit zu laufen.
+
+Im Bereich „Externer Cron-Aufruf" der Admin-Einstellungen steht dafür eine eigene, mit einem geheimen Token abgesicherte URL bereit (`GET /apps/birthdayreminder/cron-trigger/<token>`). Sie prüft direkt und **unabhängig von der eingestellten „Täglichen Prüfzeit"**, ob heute schon versendet wurde, und verschickt andernfalls sofort — die Zeitsteuerung übernimmt dabei der Zeitpunkt, den du beim Hosting-Anbieter für den Cronjob selbst einstellst. Richte dort einen Cronjob ein, der diese URL regelmäßig aufruft (z.B. alle 5–15 Minuten). Die normale, interne Prüfung (siehe oben) bleibt davon unberührt zusätzlich aktiv; beide zusammen sind unproblematisch, da doppelter Versand am selben Tag immer verhindert wird (dieselbe Versand-Historie wie beim automatischen Lauf). Über „Token neu generieren" lässt sich die URL invalidieren, falls sie z.B. versehentlich geteilt wurde — der Cronjob beim Hosting-Anbieter muss danach mit der neuen URL aktualisiert werden.
+
 ### Import/Export
 
 Auf der Mitgliederseite unter **Import/Export**:
@@ -139,7 +146,8 @@ lib/
                   CsvExporter (reine CSV-Serialisierung), VCardDate (reine BDAY-Formatkonvertierung),
                   ScheduleGate (reine Logik: "ist die eingestellte Tageszeit erreicht?"),
                   GermanDate (reine Logik: deutsche Wochentagsnamen)
-  Controller/      PageController (Mitgliederseite), MembersApiController, AdminApiController, PersonalApiController
+  Controller/      PageController (Mitgliederseite), MembersApiController, AdminApiController, PersonalApiController,
+                   CronTriggerController (oeffentliche, token-geschuetzte Alternative zu Nextclouds Job-Warteschlange)
   Settings/        AdminSection/AdminSettings (IDelegatedSettings, nur "Geburtstagserinnerung Admin"),
                    MemberAreaSection/MemberAreaAccess (permission-only, beide Gruppen), PersonalSection/PersonalSettings
   Dashboard/       BirthdayWidget.php (IAPIWidgetV2)

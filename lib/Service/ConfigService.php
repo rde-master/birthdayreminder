@@ -6,6 +6,7 @@ namespace OCA\BirthdayReminder\Service;
 
 use OCA\BirthdayReminder\AppInfo\Application;
 use OCP\IAppConfig;
+use OCP\Security\ISecureRandom;
 
 /**
  * Thin wrapper around IAppConfig for this app's few scalar settings.
@@ -17,6 +18,7 @@ final class ConfigService {
     private const KEY_LAST_RUN_DATE = 'last_run_date';
     private const KEY_REMINDERS_ENABLED = 'reminders_enabled';
     private const KEY_CONGRATS_ENABLED = 'congrats_enabled';
+    private const KEY_CRON_TRIGGER_TOKEN = 'cron_trigger_token';
 
     public const DEFAULT_CONGRATS_SUBJECT = 'Herzlichen Glückwunsch zum Geburtstag, {vorname}!';
     public const DEFAULT_CONGRATS_BODY = "Liebe/r {vorname},\n\nwir wünschen dir alles Gute zu deinem {alter}. Geburtstag am {datum}!\n\nHerzliche Grüße";
@@ -24,6 +26,7 @@ final class ConfigService {
 
     public function __construct(
         private IAppConfig $appConfig,
+        private ISecureRandom $secureRandom,
     ) {
     }
 
@@ -78,5 +81,24 @@ final class ConfigService {
 
     public function setCongratsEnabled(bool $enabled): void {
         $this->appConfig->setValueBool(Application::APP_ID, self::KEY_CONGRATS_ENABLED, $enabled);
+    }
+
+    /**
+     * Secret for the external cron-trigger URL (CronTriggerController) -
+     * generated lazily on first use so a fresh install doesn't need a
+     * migration just for this.
+     */
+    public function getCronTriggerToken(): string {
+        $token = $this->appConfig->getValueString(Application::APP_ID, self::KEY_CRON_TRIGGER_TOKEN, '');
+        if ($token === '') {
+            $token = $this->regenerateCronTriggerToken();
+        }
+        return $token;
+    }
+
+    public function regenerateCronTriggerToken(): string {
+        $token = $this->secureRandom->generate(48, ISecureRandom::CHAR_ALPHANUMERIC);
+        $this->appConfig->setValueString(Application::APP_ID, self::KEY_CRON_TRIGGER_TOKEN, $token);
+        return $token;
     }
 }

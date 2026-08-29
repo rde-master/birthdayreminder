@@ -62,6 +62,16 @@ Eine Beispiel-CSV liegt unter [docs/beispiel-mitglieder-import.csv](beispiel-mit
 
 **Versand-Log einsehbar, exportierbar & löschbar:** `ReminderLogMapper::findRecent()` liefert die letzten 200 Einträge; `MembersApiController::getSendLog()` löst `contact_uid` zu Mitgliedsnamen auf (Fallback „Unbekannt/gelöscht" für inzwischen entfernte Mitglieder), `exportSendLogCsv()` liefert dieselben Daten als CSV-Download. Admin-Einstellungsseite hat einen „Log löschen"-Button (`ReminderLogMapper::deleteAll()`) mit Bestätigungsdialog, der explizit auf das Duplikat-Risiko hinweist (Löschen hebt die Idempotenz-Sperre für den restlichen Tag auf).
 
+## Externer, token-geschützter Cron-Trigger
+
+**Warum:** Nextclouds gemeinsame Job-Warteschlange (`oc_jobs`, `IJobList::getNext()`) wählt pro Aufruf per `ORDER BY last_checked ASC LIMIT 1` genau **einen** fälligen Job aus allen installierten Apps aus - bei Webcron/Ajax-Modus (kein echter CLI-Cron, z.B. bei All-Inkl, deren KAS-Panel nur URL-Aufrufe als Cronjob erlaubt) verarbeitet jeder Aufruf nur diesen einen Job. Live auf einer Testinstanz beobachtet: `DailyReminderJob` stand bei 60-70 registrierten Jobs teils >10 Stunden in der Warteschlange, weil andere Apps' Jobs (durch häufigeres Prüfen) einen "frischeren" `last_checked`-Wert hatten und daher bevorzugt gewählt wurden - insbesondere nachdem wiederholtes `app:disable`/`app:enable` während der Entwicklung den Job immer wieder ans Ende der Reihenfolge zurückgesetzt hatte (jede `JobList::add()`-Registrierung setzt `last_checked` auf "jetzt").
+
+**Lösung:** `CronTriggerController::trigger()` - eine öffentliche (`#[PublicPage]`, `#[NoCSRFRequired]`), mit einem 48-stelligen zufälligen Token abgesicherte Route (`GET /cron-trigger/{token}`), die komplett an Nextclouds Job-Warteschlange vorbei direkt `ReminderService::run()` aufruft. Läuft **zusätzlich zum**, nicht anstelle des normalen `DailyReminderJob` - beide teilen sich dieselbe Idempotenz (`last_run_date` + Versand-Log), doppelter Versand ist dadurch ausgeschlossen, egal welcher der beiden Wege zuerst durchkommt.
+
+Bewusst **zeitunabhängig**: `ScheduleGate::alreadyRanToday()` (aus `shouldRunNow()` herausgezogen, ohne den Uhrzeit-Vergleich) prüft nur noch "heute schon gelaufen?" - die eigentliche Zeitsteuerung übernimmt der Admin selbst über den Zeitpunkt, den er beim externen Cronjob einstellt, statt über die App-interne „Tägliche Prüfzeit".
+
+**Token-Verwaltung:** `ConfigService::getCronTriggerToken()` generiert lazy einen `ISecureRandom::CHAR_ALPHANUMERIC`-Token (48 Zeichen) bei erster Nutzung, keine Migration nötig. `regenerateCronTriggerToken()` erzeugt einen neuen (invalidiert die alte URL). Vergleich via `hash_equals()` (timing-safe). Admin-UI (`AdminApiController::getCronTriggerUrl()`/`regenerateCronTriggerToken()`) baut die volle absolute URL über `IURLGenerator::getAbsoluteURL()`, da sie für einen externen Dienst (nicht für `OC.generateUrl()` im Browser) gedacht ist.
+
 ## Mail-Format: schlichter Klartext
 
 `MailService` nutzt bewusst **reinen Klartext** (`IMessage::setPlainBody()`) statt einer HTML-Vorlage — ein früherer Versuch mit `OCP\Mail\IEMailTemplate` hinterließ auch ohne Header/Footer-Aufruf noch sichtbares HTML-Tabellen-Gerüst (Logo, Leerbereiche), das sich über die Vorlagen-API nicht vollständig entfernen ließ.

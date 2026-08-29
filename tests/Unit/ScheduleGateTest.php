@@ -44,4 +44,15 @@ final class ScheduleGateTest extends TestCase {
         $now = new DateTimeImmutable('2026-08-27 03:00:00');
         self::assertTrue($this->gate->shouldRunNow('not-a-time', $now, null));
     }
+
+    public function testAlreadyRanTodayIsTrueForSameDate(): void {
+        $now = new DateTimeImmutable('2026-08-27 03:00:00');
+        self::assertTrue($this->gate->alreadyRanToday('2026-08-27', $now));
+    }
+
+    public function testAlreadyRanTodayIsFalseForDifferentDateOrNull(): void {
+        $now = new DateTimeImmutable('2026-08-27 03:00:00');
+        self::assertFalse($this->gate->alreadyRanToday('2026-08-26', $now));
+        self::assertFalse($this->gate->alreadyRanToday(null, $now));
+    }
 }

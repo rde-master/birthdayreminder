@@ -6,6 +6,9 @@ return [
     'routes' => [
         ['name' => 'page#index', 'url' => '/', 'verb' => 'GET'],
 
+        // Public, token-protected alternative to Nextcloud's own cron queue - see CronTriggerController.
+        ['name' => 'cronTrigger#trigger', 'url' => '/cron-trigger/{token}', 'verb' => 'GET', 'requirements' => ['token' => '[A-Za-z0-9]+']],
+
         ['name' => 'membersApi#getMembers', 'url' => '/admin/members', 'verb' => 'GET'],
         ['name' => 'membersApi#saveMember', 'url' => '/admin/members', 'verb' => 'POST'],
         ['name' => 'membersApi#deleteMember', 'url' => '/admin/members/{id}', 'verb' => 'DELETE', 'requirements' => ['id' => '\d+']],
@@ -32,6 +35,8 @@ return [
 
         ['name' => 'adminApi#getSchedule', 'url' => '/admin/schedule', 'verb' => 'GET'],
         ['name' => 'adminApi#saveSchedule', 'url' => '/admin/schedule', 'verb' => 'POST'],
+        ['name' => 'adminApi#getCronTriggerUrl', 'url' => '/admin/cron-trigger-url', 'verb' => 'GET'],
+        ['name' => 'adminApi#regenerateCronTriggerToken', 'url' => '/admin/cron-trigger-url/regenerate', 'verb' => 'POST'],
         ['name' => 'adminApi#triggerReminders', 'url' => '/admin/trigger-reminders', 'verb' => 'POST'],
         ['name' => 'adminApi#triggerCongrats', 'url' => '/admin/trigger-congrats', 'verb' => 'POST'],
         ['name' => 'adminApi#clearLog', 'url' => '/admin/log', 'verb' => 'DELETE'],

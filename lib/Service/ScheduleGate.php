@@ -18,8 +18,8 @@ final class ScheduleGate {
      * @param string|null $lastRunDate "Y-m-d" of the last completed run, or null
      */
     public function shouldRunNow(string $configuredTime, DateTimeImmutable $now, ?string $lastRunDate): bool {
-        if ($lastRunDate === $now->format('Y-m-d')) {
-            return false; // already completed today
+        if ($this->alreadyRanToday($lastRunDate, $now)) {
+            return false;
         }
 
         $parts = explode(':', $configuredTime);
@@ -30,5 +30,16 @@ final class ScheduleGate {
         $target = $now->setTime((int)$parts[0], (int)$parts[1], 0);
 
         return $now >= $target;
+    }
+
+    /**
+     * Just the "already completed today" half of shouldRunNow(), with no
+     * time-of-day check - used by the external cron-trigger endpoint, which
+     * is deliberately time-independent (the caller's own external cron
+     * schedule takes over that role) but should still only actually run
+     * once per day.
+     */
+    public function alreadyRanToday(?string $lastRunDate, DateTimeImmutable $now): bool {
+        return $lastRunDate === $now->format('Y-m-d');
     }
 }
