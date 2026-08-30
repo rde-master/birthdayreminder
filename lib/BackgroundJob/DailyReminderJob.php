@@ -27,7 +27,17 @@ class DailyReminderJob extends TimedJob {
         // invoke run() often enough to notice when that time has passed, so
         // the TimedJob interval itself stays short (hourly).
         $this->setInterval(60 * 60);
-        $this->setTimeSensitivity(self::TIME_INSENSITIVE);
+        // TIME_SENSITIVE, not TIME_INSENSITIVE: the entire point of this
+        // feature is sending at the configured time. TIME_INSENSITIVE
+        // sounds harmless ("ok to delay during high load") but has a sharp
+        // edge - if the admin has configured Nextcloud's "maintenance_window_start"
+        // (Settings -> Administration -> Basic settings -> "background jobs"),
+        // CLI cron restricts itself to time-sensitive jobs *outside* that
+        // ~4h low-load window, so a time-insensitive job simply never gets
+        // picked at all the rest of the day (confirmed live: this is why
+        // reminders silently stopped firing on a real deployment that had
+        // that setting configured).
+        $this->setTimeSensitivity(self::TIME_SENSITIVE);
     }
 
     protected function run($argument): void {

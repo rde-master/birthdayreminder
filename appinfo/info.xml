@@ -5,7 +5,7 @@
     <name>Geburtstagserinnerung</name>
     <summary>Erinnerungs- und Glückwunsch-Mails zu Geburtstagen, verwaltet in einem eigenen Mitgliederregister mit CSV- und Kontakte-Import/-Export.</summary>
     <description><![CDATA[Eigenes Mitgliederregister (Vorname, Nachname, Geburtsdatum, E-Mail, Deaktiviert-Schalter) mit CSV- und Kontakte-Import, der neue Mitglieder anlegt, geänderte aktualisiert und beim Import fehlende automatisch deaktiviert. Verschickt zu frei konfigurierbaren Vorlaufzeiten Erinnerungs-Mails an Verantwortliche sowie eine Glückwunsch-Mail an das Mitglied selbst. Zeigt außerdem die nächsten anstehenden Geburtstage als Dashboard-Widget.]]></description>
-    <version>0.13.1</version>
+    <version>0.13.2</version>
     <licence>agpl</licence>
     <author>rde-master</author>
     <namespace>BirthdayReminder</namespace>
