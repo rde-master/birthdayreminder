@@ -32,6 +32,7 @@ final class ReminderService {
         private MailService $mailService,
         private MailTemplateRenderer $templateRenderer,
         private ConfigService $configService,
+        private ClockService $clockService,
         private LoggerInterface $logger,
     ) {
     }
@@ -44,7 +45,7 @@ final class ReminderService {
      * @return array<int, array{member: Member, daysUntil: int, targetDate: DateTimeImmutable, age: ?int}>
      */
     public function getUpcomingBirthdays(int $limit = 7): array {
-        $today = new DateTimeImmutable('today');
+        $today = $this->clockService->today();
         $members = $this->activeMembers();
 
         $upcoming = array_map(
@@ -66,7 +67,7 @@ final class ReminderService {
      * @return array<int, array{member: Member, daysUntil: int, targetDate: DateTimeImmutable, age: ?int}>
      */
     public function getUpcomingBirthdaysWithinDays(int $maxDays): array {
-        $today = new DateTimeImmutable('today');
+        $today = $this->clockService->today();
         $members = $this->activeMembers();
 
         $upcoming = array_filter(
@@ -87,7 +88,7 @@ final class ReminderService {
      * themselves. Used by the scheduled background job.
      */
     public function run(?DateTimeImmutable $today = null): void {
-        $today ??= new DateTimeImmutable('today');
+        $today ??= $this->clockService->today();
         $this->runReminders($today);
         $this->runCongrats($today);
     }
@@ -106,7 +107,7 @@ final class ReminderService {
             return false;
         }
 
-        $today ??= new DateTimeImmutable('today');
+        $today ??= $this->clockService->today();
         $context = $this->buildContext($today);
 
         foreach ($context['recipients'] as $recipient) {
@@ -133,7 +134,7 @@ final class ReminderService {
             return false;
         }
 
-        $today ??= new DateTimeImmutable('today');
+        $today ??= $this->clockService->today();
         $context = $this->buildContext($today);
         $this->sendCongratulations($context['matchesByOffset'][0] ?? []);
         return true;

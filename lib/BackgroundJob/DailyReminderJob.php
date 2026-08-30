@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\BirthdayReminder\BackgroundJob;
 
-use DateTimeImmutable;
+use OCA\BirthdayReminder\Service\ClockService;
 use OCA\BirthdayReminder\Service\ConfigService;
 use OCA\BirthdayReminder\Service\ReminderService;
 use OCA\BirthdayReminder\Service\ScheduleGate;
@@ -18,6 +18,7 @@ class DailyReminderJob extends TimedJob {
         private ReminderService $reminderService,
         private ConfigService $configService,
         private ScheduleGate $scheduleGate,
+        private ClockService $clockService,
         private LoggerInterface $logger,
     ) {
         parent::__construct($time);
@@ -30,7 +31,7 @@ class DailyReminderJob extends TimedJob {
     }
 
     protected function run($argument): void {
-        $now = new DateTimeImmutable('now');
+        $now = $this->clockService->now();
         $configuredTime = $this->configService->getDailyRunTime();
 
         if (!$this->scheduleGate->shouldRunNow($configuredTime, $now, $this->configService->getLastRunDate())) {
@@ -38,7 +39,7 @@ class DailyReminderJob extends TimedJob {
         }
 
         $this->logger->info('birthdayreminder: starting daily run', ['configuredTime' => $configuredTime]);
-        $this->reminderService->run($now);
+        $this->reminderService->run($this->clockService->today());
         $this->configService->setLastRunDate($now->format('Y-m-d'));
         $this->logger->info('birthdayreminder: daily run finished');
     }

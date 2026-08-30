@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace OCA\BirthdayReminder\Command;
 
-use DateTimeImmutable;
 use OCA\BirthdayReminder\Db\Member as MemberEntity;
 use OCA\BirthdayReminder\Db\MemberMapper;
 use OCA\BirthdayReminder\Model\Member;
+use OCA\BirthdayReminder\Service\ClockService;
 use OCA\BirthdayReminder\Service\ReminderCalculator;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -24,6 +24,7 @@ class DebugUpcoming extends Command {
     public function __construct(
         private MemberMapper $memberMapper,
         private ReminderCalculator $calculator,
+        private ClockService $clockService,
     ) {
         parent::__construct();
     }
@@ -50,7 +51,7 @@ class DebugUpcoming extends Command {
         $output->writeln(sprintf('%d aktive(s) Mitglied(er) in der Registry.', count($members)));
 
         $offsets = array_map('intval', explode(',', (string)$input->getOption('offsets')));
-        $today = new DateTimeImmutable('today');
+        $today = $this->clockService->today();
         $matches = $this->calculator->findMatches($members, $offsets, $today);
 
         if (empty($matches)) {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\BirthdayReminder\Controller;
 
-use DateTimeImmutable;
+use OCA\BirthdayReminder\Service\ClockService;
 use OCA\BirthdayReminder\Service\ConfigService;
 use OCA\BirthdayReminder\Service\ReminderService;
 use OCA\BirthdayReminder\Service\ScheduleGate;
@@ -43,6 +43,7 @@ class CronTriggerController extends Controller {
         private ConfigService $configService,
         private ScheduleGate $scheduleGate,
         private ReminderService $reminderService,
+        private ClockService $clockService,
         private LoggerInterface $logger,
     ) {
         parent::__construct($appName, $request);
@@ -55,13 +56,13 @@ class CronTriggerController extends Controller {
             return new JSONResponse(['error' => 'invalid token'], 403);
         }
 
-        $now = new DateTimeImmutable('now');
+        $now = $this->clockService->now();
         if ($this->scheduleGate->alreadyRanToday($this->configService->getLastRunDate(), $now)) {
             return new JSONResponse(['ok' => true, 'skippedAlreadyRanToday' => true]);
         }
 
         $this->logger->info('birthdayreminder: starting daily run (external cron-trigger URL)');
-        $this->reminderService->run($now);
+        $this->reminderService->run($this->clockService->today());
         $this->configService->setLastRunDate($now->format('Y-m-d'));
         $this->logger->info('birthdayreminder: daily run finished (external cron-trigger URL)');
 

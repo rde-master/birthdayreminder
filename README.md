@@ -65,7 +65,7 @@ Empfehlenswert vor größeren Updates: ein Datenbank-Backup der Nextcloud-Instan
 2. **Einstellungen → Verwaltung → Geburtstagserinnerung** öffnen (als Nextcloud-Admin oder Mitglied der Gruppe „Geburtstagserinnerung Admin"): Empfänger anlegen (Nextcloud-Nutzer, Gruppe oder feste E-Mail-Adresse) mit eigenen Vorlaufzeiten
 3. Optional: runde Geburtstage mit Geschenkvorschlag hinterlegen
 4. Optional: Text der Glückwunsch-Mail anpassen (Platzhalter `{name}`, `{vorname}`, `{alter}`, `{datum}`, `{wochentag}`)
-5. Im Bereich „Zeitplan & manueller Versand": Uhrzeit für die tägliche Prüfung einstellen (Standard 08:00), sowie je ein Schalter, um Erinnerungs- bzw. Glückwunsch-Mails komplett zu deaktivieren (z.B. während einer Testphase) — betrifft automatischen wie manuellen Versand gleichermaßen, ohne Empfänger/Vorlaufzeiten/Mitglieder zu verändern. Dort auch zwei Buttons, um Erinnerungen bzw. Glückwünsche sofort manuell auszulösen (respektiert dieselbe Versand-Historie wie der automatische Lauf, also keine doppelten Mails), sowie ein Button zum vollständigen Löschen des Versand-Logs (Warnung: hebt die Duplikat-Sperre für den Tag auf)
+5. Im Bereich „Zeitplan & manueller Versand": Uhrzeit für die tägliche Prüfung einstellen (Standard 08:00, wird in der **Ortszeit des Servers** interpretiert — also z.B. 06:00 tatsächlich 06:00 Uhr lokal, nicht UTC), sowie je ein Schalter, um Erinnerungs- bzw. Glückwunsch-Mails komplett zu deaktivieren (z.B. während einer Testphase) — betrifft automatischen wie manuellen Versand gleichermaßen, ohne Empfänger/Vorlaufzeiten/Mitglieder zu verändern. Dort auch zwei Buttons, um Erinnerungen bzw. Glückwünsche sofort manuell auszulösen (respektiert dieselbe Versand-Historie wie der automatische Lauf, also keine doppelten Mails), sowie ein Button zum vollständigen Löschen des Versand-Logs (Warnung: hebt die Duplikat-Sperre für den Tag auf)
 
 Jeder Nextcloud-Nutzer kann außerdem unter **Einstellungen → Geburtstagserinnerung** selbst festlegen, zu welchen Vorlaufzeiten (bzw. nur bei runden Geburtstagen) er erinnert werden möchte.
 
@@ -145,7 +145,8 @@ lib/
                   CsvParser/MemberSyncPlanner (reine CSV-/Kontakte-Import-Logik), CsvImportService (Orchestrierung),
                   CsvExporter (reine CSV-Serialisierung), VCardDate (reine BDAY-Formatkonvertierung),
                   ScheduleGate (reine Logik: "ist die eingestellte Tageszeit erreicht?"),
-                  GermanDate (reine Logik: deutsche Wochentagsnamen)
+                  GermanDate (reine Logik: deutsche Wochentagsnamen),
+                  ClockService ("jetzt"/"heute" in der echten Server-Zeitzone statt Nextclouds UTC-Laufzeit-Default)
   Controller/      PageController (Mitgliederseite), MembersApiController, AdminApiController, PersonalApiController,
                    CronTriggerController (oeffentliche, token-geschuetzte Alternative zu Nextclouds Job-Warteschlange)
   Settings/        AdminSection/AdminSettings (IDelegatedSettings, nur "Geburtstagserinnerung Admin"),

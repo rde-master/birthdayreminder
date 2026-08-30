@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace OCA\BirthdayReminder\Controller;
 
-use DateTimeImmutable;
 use OCA\BirthdayReminder\Contacts\ContactsGateway;
 use OCA\BirthdayReminder\Db\Member;
 use OCA\BirthdayReminder\Db\MemberMapper;
@@ -12,6 +11,7 @@ use OCA\BirthdayReminder\Db\Milestone;
 use OCA\BirthdayReminder\Db\MilestoneMapper;
 use OCA\BirthdayReminder\Db\ReminderLog;
 use OCA\BirthdayReminder\Db\ReminderLogMapper;
+use OCA\BirthdayReminder\Service\ClockService;
 use OCA\BirthdayReminder\Service\CsvExporter;
 use OCA\BirthdayReminder\Service\CsvImportService;
 use OCA\BirthdayReminder\Service\CsvParser;
@@ -39,6 +39,7 @@ class MembersApiController extends Controller {
         private ReminderService $reminderService,
         private ReminderCalculator $calculator,
         private MilestoneMapper $milestoneMapper,
+        private ClockService $clockService,
     ) {
         parent::__construct($appName, $request);
     }
@@ -229,7 +230,7 @@ class MembersApiController extends Controller {
             $monthCounts[$member->getBirthMonth() - 1]++;
         }
 
-        $todayForAge = new DateTimeImmutable('today');
+        $todayForAge = $this->clockService->today();
         $ageCounts = [];
         $unknownAge = 0;
         foreach ($activeMembers as $member) {
