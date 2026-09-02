@@ -85,12 +85,18 @@ final class ReminderService {
 
     /**
      * Full daily pass: reminders to recipients + congrats to the members
-     * themselves. Used by the scheduled background job.
+     * themselves. Used by the scheduled background job. Logs a TYPE_NONE
+     * marker if the whole run found nothing to send, so "checked, nothing
+     * due today" is distinguishable from "the job never ran" in the log.
      */
     public function run(?DateTimeImmutable $today = null): void {
         $today ??= $this->clockService->today();
-        $this->runReminders($today);
-        $this->runCongrats($today);
+        $remindersSent = $this->doRunReminders($today);
+        $congratsSent = $this->doRunCongrats($today);
+
+        if (($remindersSent ?? 0) + ($congratsSent ?? 0) === 0) {
+            $this->reminderLogMapper->logNoMailSent($today);
+        }
     }
 
     /**
@@ -102,24 +108,7 @@ final class ReminderService {
      * @return bool false if skipped because reminder mails are globally disabled
      */
     public function runReminders(?DateTimeImmutable $today = null): bool {
-        if (!$this->configService->getRemindersEnabled()) {
-            $this->logger->info('birthdayreminder: reminder mails are disabled, skipping run');
-            return false;
-        }
-
-        $today ??= $this->clockService->today();
-        $context = $this->buildContext($today);
-
-        foreach ($context['recipients'] as $recipient) {
-            $this->sendRemindersForRecipient(
-                $recipient,
-                $context['offsetsByRecipient'][$recipient->getId()] ?? [],
-                $context['matchesByOffset'],
-                $context['milestoneAges']
-            );
-        }
-
-        return true;
+        return $this->doRunReminders($today ?? $this->clockService->today()) !== null;
     }
 
     /**
@@ -129,15 +118,46 @@ final class ReminderService {
      * @return bool false if skipped because congrats mails are globally disabled
      */
     public function runCongrats(?DateTimeImmutable $today = null): bool {
-        if (!$this->configService->getCongratsEnabled()) {
-            $this->logger->info('birthdayreminder: congrats mails are disabled, skipping run');
-            return false;
+        return $this->doRunCongrats($today ?? $this->clockService->today()) !== null;
+    }
+
+    /**
+     * @return int|null number of reminder e-mails actually sent, or null if
+     *                   skipped because reminder mails are globally disabled
+     */
+    private function doRunReminders(DateTimeImmutable $today): ?int {
+        if (!$this->configService->getRemindersEnabled()) {
+            $this->logger->info('birthdayreminder: reminder mails are disabled, skipping run');
+            return null;
         }
 
-        $today ??= $this->clockService->today();
         $context = $this->buildContext($today);
-        $this->sendCongratulations($context['matchesByOffset'][0] ?? []);
-        return true;
+
+        $sentCount = 0;
+        foreach ($context['recipients'] as $recipient) {
+            $sentCount += $this->sendRemindersForRecipient(
+                $recipient,
+                $context['offsetsByRecipient'][$recipient->getId()] ?? [],
+                $context['matchesByOffset'],
+                $context['milestoneAges']
+            );
+        }
+
+        return $sentCount;
+    }
+
+    /**
+     * @return int|null number of congrats e-mails actually sent, or null if
+     *                   skipped because congrats mails are globally disabled
+     */
+    private function doRunCongrats(DateTimeImmutable $today): ?int {
+        if (!$this->configService->getCongratsEnabled()) {
+            $this->logger->info('birthdayreminder: congrats mails are disabled, skipping run');
+            return null;
+        }
+
+        $context = $this->buildContext($today);
+        return $this->sendCongratulations($context['matchesByOffset'][0] ?? []);
     }
 
     /**
@@ -184,18 +204,20 @@ final class ReminderService {
      * @param int[] $offsets
      * @param array<int, array<int, array{member: Member, daysBefore: int, targetDate: DateTimeImmutable, age: ?int}>> $matchesByOffset
      * @param int[] $milestoneAges
+     * @return int number of reminder e-mails actually sent for this recipient
      */
     private function sendRemindersForRecipient(
         Recipient $recipient,
         array $offsets,
         array $matchesByOffset,
         array $milestoneAges,
-    ): void {
+    ): int {
         $emails = $this->recipientResolver->resolveEmails($recipient);
         if (empty($emails)) {
-            return;
+            return 0;
         }
 
+        $sentCount = 0;
         foreach ($offsets as $daysBefore) {
             foreach ($matchesByOffset[$daysBefore] ?? [] as $match) {
                 if ($recipient->getOnlyMilestones() && !$this->calculator->isMilestoneAge($match['age'], $milestoneAges)) {
@@ -204,22 +226,23 @@ final class ReminderService {
 
                 $member = $match['member'];
                 $targetYear = (int)$match['targetDate']->format('Y');
-
-                if ($this->reminderLogMapper->alreadySent($member->uid, ReminderLog::TYPE_OFFSET, $daysBefore, $targetYear)) {
-                    continue;
-                }
-
                 $giftText = $match['age'] !== null
                     ? $this->milestoneMapper->findByAge($match['age'])?->getGiftText()
                     : null;
 
-                // Only mark as sent if every recipient address for this match succeeded;
-                // a partial failure retries for everyone on the next run rather than
-                // silently and permanently dropping the reminder for the failed address.
-                $allSucceeded = true;
+                // Idempotency and logging are per (match, recipient address), not per
+                // match alone - otherwise the first recipient to receive this match
+                // would mark it "sent" and every other recipient subscribed to the
+                // same offset would be silently skipped.
                 foreach ($emails as $email) {
-                    if (!$this->mailService->sendReminder($email, $member, $daysBefore, $match['targetDate'], $match['age'], $giftText, $recipient->getBirthdateInSubject())) {
-                        $allSucceeded = false;
+                    if ($this->reminderLogMapper->alreadySent($member->uid, ReminderLog::TYPE_OFFSET, $daysBefore, $targetYear, $email)) {
+                        continue;
+                    }
+
+                    if ($this->mailService->sendReminder($email, $member, $daysBefore, $match['targetDate'], $match['age'], $giftText, $recipient->getBirthdateInSubject())) {
+                        $this->reminderLogMapper->logSent($member->uid, ReminderLog::TYPE_OFFSET, $daysBefore, $targetYear, $email);
+                        $sentCount++;
+                    } else {
                         $this->logger->error('birthdayreminder: reminder mail delivery failed', [
                             'contactUid' => $member->uid,
                             'toEmail' => $email,
@@ -227,17 +250,17 @@ final class ReminderService {
                         ]);
                     }
                 }
-                if ($allSucceeded) {
-                    $this->reminderLogMapper->logSent($member->uid, ReminderLog::TYPE_OFFSET, $daysBefore, $targetYear);
-                }
             }
         }
+        return $sentCount;
     }
 
     /**
      * @param array<int, array{member: Member, daysBefore: int, targetDate: DateTimeImmutable, age: ?int}> $todaysMatches
+     * @return int number of congrats e-mails actually sent
      */
-    private function sendCongratulations(array $todaysMatches): void {
+    private function sendCongratulations(array $todaysMatches): int {
+        $sentCount = 0;
         foreach ($todaysMatches as $match) {
             $member = $match['member'];
 
@@ -249,7 +272,7 @@ final class ReminderService {
             }
 
             $targetYear = (int)$match['targetDate']->format('Y');
-            if ($this->reminderLogMapper->alreadySent($member->uid, ReminderLog::TYPE_CONGRATS, ReminderLog::NO_OFFSET, $targetYear)) {
+            if ($this->reminderLogMapper->alreadySent($member->uid, ReminderLog::TYPE_CONGRATS, ReminderLog::NO_OFFSET, $targetYear, $member->email)) {
                 continue;
             }
 
@@ -266,11 +289,13 @@ final class ReminderService {
 
             $succeeded = $this->mailService->sendCongratulation($member->email, $subject, $body);
             if ($succeeded) {
-                $this->reminderLogMapper->logSent($member->uid, ReminderLog::TYPE_CONGRATS, ReminderLog::NO_OFFSET, $targetYear);
+                $this->reminderLogMapper->logSent($member->uid, ReminderLog::TYPE_CONGRATS, ReminderLog::NO_OFFSET, $targetYear, $member->email);
+                $sentCount++;
             } else {
                 $this->logger->error('birthdayreminder: congrats mail delivery failed', ['contactUid' => $member->uid]);
             }
         }
+        return $sentCount;
     }
 
     /**

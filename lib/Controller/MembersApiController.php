@@ -270,19 +270,28 @@ class MembersApiController extends Controller {
         $rows = array_map(function (array $entry): array {
             return [
                 $entry['memberName'],
-                $entry['reminderType'] === ReminderLog::TYPE_CONGRATS ? 'Glückwunsch ans Mitglied' : 'Erinnerung an Verantwortliche',
+                self::formatLogTypeForExport($entry['reminderType']),
                 $entry['daysBefore'] === null ? '' : (string)$entry['daysBefore'],
                 (string)$entry['birthdayYear'],
+                $entry['recipientEmail'],
                 date('d.m.Y H:i', $entry['sentAt']),
             ];
         }, $this->buildLogRows());
 
-        $csv = $this->csvExporter->toCsv(['Mitglied', 'Art', 'Vorlaufzeit (Tage)', 'Bezugsjahr', 'Gesendet am'], $rows);
+        $csv = $this->csvExporter->toCsv(['Mitglied', 'Art', 'Vorlaufzeit (Tage)', 'Bezugsjahr', 'Empfänger', 'Gesendet am'], $rows);
         return new DataDownloadResponse($csv, 'versand-log.csv', 'text/csv; charset=UTF-8');
     }
 
+    private static function formatLogTypeForExport(string $reminderType): string {
+        return match ($reminderType) {
+            ReminderLog::TYPE_CONGRATS => 'Glückwunsch ans Mitglied',
+            ReminderLog::TYPE_NONE => 'Kein Versand (nichts fällig)',
+            default => 'Erinnerung an Verantwortliche',
+        };
+    }
+
     /**
-     * @return list<array{id: int, memberName: string, reminderType: string, daysBefore: ?int, birthdayYear: int, sentAt: int}>
+     * @return list<array{id: int, memberName: string, reminderType: string, daysBefore: ?int, birthdayYear: int, recipientEmail: string, sentAt: int}>
      */
     private function buildLogRows(): array {
         $logs = $this->reminderLogMapper->findRecent(200);
@@ -293,12 +302,16 @@ class MembersApiController extends Controller {
         }
 
         return array_map(function (ReminderLog $log) use ($memberNames): array {
+            $isNoneMarker = $log->getReminderType() === ReminderLog::TYPE_NONE;
             return [
                 'id' => $log->getId(),
-                'memberName' => $memberNames[$log->getContactUid()] ?? ('Unbekannt/gelöscht (ID ' . $log->getContactUid() . ')'),
+                'memberName' => $isNoneMarker
+                    ? '–'
+                    : ($memberNames[$log->getContactUid()] ?? ('Unbekannt/gelöscht (ID ' . $log->getContactUid() . ')')),
                 'reminderType' => $log->getReminderType(),
                 'daysBefore' => $log->getDaysBefore() === ReminderLog::NO_OFFSET ? null : $log->getDaysBefore(),
                 'birthdayYear' => $log->getBirthdayYear(),
+                'recipientEmail' => $log->getRecipientEmail(),
                 'sentAt' => $log->getSentAt(),
             ];
         }, $logs);

@@ -17,7 +17,7 @@ Die Mitgliederdaten (Vorname, Nachname, Geburtsdatum, E-Mail, Deaktiviert-Schalt
 - **Übersicht**: anstehende Geburtstage in drei Zeiträumen (heute / nächste 7 Tage / nächste 30 Tage) sowie ein Kreisdiagramm „Geburtstage pro Monat" und ein Balkendiagramm „Altersstruktur"
 - **Import/Export**: CSV-Import mit Spaltenzuordnung (inkl. Download-Vorlage) und CSV-Export der Mitgliederliste; Import aus und Export in die eigenen Nextcloud-Kontakte, Abgleich primär per E-Mail-Adresse, damit keine doppelten Einträge entstehen
 - **Geschenke**: schreibgeschützte Übersicht der Geschenkvorschläge zu runden Geburtstagen (Bearbeitung bleibt der Admin-Seite vorbehalten)
-- **Versand-Log**: Protokoll der letzten 200 tatsächlich verschickten Mails, als CSV exportierbar, vom Admin löschbar
+- **Versand-Log**: Protokoll der letzten 200 tatsächlich verschickten Mails (ein Eintrag je Empfänger-E-Mail, plus ein "Kein Versand"-Eintrag an Tagen ohne fällige Geburtstage), als CSV exportierbar, vom Admin löschbar
 - **Konfigurierbare Vorlaufzeiten** pro Empfänger (Nextcloud-Nutzer, Gruppe oder feste E-Mail-Adresse) — zentral über die Admin-Seite oder von jedem Nutzer selbst über die persönlichen Einstellungen
 - **Runde Geburtstage** mit admin-konfigurierbarem Geschenkvorschlag, der automatisch in die Erinnerungs-Mail übernommen wird
 - **Admin-editierbare Glückwunsch-Mail-Vorlage** mit Platzhaltern (Name, Alter, Datum, Wochentag)

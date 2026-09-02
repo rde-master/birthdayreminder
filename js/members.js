@@ -721,7 +721,13 @@
 	// ---- Send log (Versand-Log) ---------------------------------------
 
 	function formatLogType(reminderType) {
-		return reminderType === 'congrats' ? t('Glückwunsch ans Mitglied') : t('Erinnerung an Verantwortliche');
+		if (reminderType === 'congrats') {
+			return t('Glückwunsch ans Mitglied');
+		}
+		if (reminderType === 'none') {
+			return t('Kein Versand (nichts fällig)');
+		}
+		return t('Erinnerung an Verantwortliche');
 	}
 
 	function formatLogOffset(daysBefore) {
@@ -738,7 +744,7 @@
 	function renderSendLog(root) {
 		var wrap = section(t('Versand-Log'));
 		wrap.appendChild(el('p', {
-			text: t('Protokoll aller tatsächlich verschickten Erinnerungs- und Glückwunsch-Mails (die letzten 200 Einträge, neueste zuerst). Dient auch der Nachvollziehbarkeit, warum eine Mail an einem Tag nicht erneut verschickt wurde.'),
+			text: t('Protokoll jeder tatsächlich verschickten Erinnerungs- oder Glückwunsch-Mail, ein Eintrag je Empfänger-E-Mail (die letzten 200 Einträge, neueste zuerst). Ein "Kein Versand"-Eintrag zeigt, dass an dem Tag geprüft, aber nichts gefunden wurde.'),
 		}));
 
 		var exportLink = el('a', { class: 'button', href: url('/admin/send-log/export-csv'), text: t('Als CSV exportieren') });
@@ -759,6 +765,7 @@
 				el('th', { text: t('Art') }),
 				el('th', { text: t('Vorlaufzeit') }),
 				el('th', { text: t('Bezugsjahr') }),
+				el('th', { text: t('Empfänger') }),
 				el('th', { text: t('Gesendet am') }),
 			]));
 			entries.forEach(function (entry) {
@@ -767,6 +774,7 @@
 					el('td', { text: formatLogType(entry.reminderType) }),
 					el('td', { text: formatLogOffset(entry.daysBefore) }),
 					el('td', { text: String(entry.birthdayYear) }),
+					el('td', { text: entry.recipientEmail || '–' }),
 					el('td', { text: formatLogSentAt(entry.sentAt) }),
 				]));
 			});
