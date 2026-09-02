@@ -15,7 +15,7 @@ use OCP\AppFramework\Db\Entity;
  * @method void setDaysBefore(int $daysBefore)
  * @method int getBirthdayYear()
  * @method void setBirthdayYear(int $birthdayYear)
- * @method string getRecipientEmail()
+ * @method ?string getRecipientEmail()
  * @method void setRecipientEmail(string $recipientEmail)
  * @method int getSentAt()
  * @method void setSentAt(int $sentAt)

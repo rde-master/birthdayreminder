@@ -311,7 +311,10 @@ class MembersApiController extends Controller {
                 'reminderType' => $log->getReminderType(),
                 'daysBefore' => $log->getDaysBefore() === ReminderLog::NO_OFFSET ? null : $log->getDaysBefore(),
                 'birthdayYear' => $log->getBirthdayYear(),
-                'recipientEmail' => $log->getRecipientEmail(),
+                // Pre-existing rows from before this column was added have no
+                // recorded recipient (NULL) - render that the same as the
+                // TYPE_NONE sentinel rather than exposing NULL to the API.
+                'recipientEmail' => $log->getRecipientEmail() ?? '',
                 'sentAt' => $log->getSentAt(),
             ];
         }, $logs);

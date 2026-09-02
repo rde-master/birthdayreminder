@@ -28,7 +28,13 @@ class Version1040Date20260831000000 extends SimpleMigrationStep {
 
         $table = $schema->getTable('birthdayreminder_log');
         if (!$table->hasColumn('recipient_email')) {
-            $table->addColumn('recipient_email', Types::STRING, ['notnull' => true, 'length' => 255, 'default' => '']);
+            // Nullable rather than NOT NULL DEFAULT '': Nextcloud's migration
+            // checker rejects an empty-string default on a NOT NULL column,
+            // and NULL is the more honest value for pre-existing rows anyway
+            // (their recipient was genuinely never recorded). All rows written
+            // by the app from here on always set a real value explicitly - see
+            // ReminderLog::NO_RECIPIENT for the sentinel used on TYPE_NONE rows.
+            $table->addColumn('recipient_email', Types::STRING, ['notnull' => false, 'length' => 255]);
         }
         if ($table->hasIndex('birthdayreminder_log_uniq')) {
             $table->dropIndex('birthdayreminder_log_uniq');
