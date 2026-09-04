@@ -278,7 +278,7 @@ class MembersApiController extends Controller {
             ];
         }, $this->buildLogRows());
 
-        $csv = $this->csvExporter->toCsv(['Mitglied', 'Art', 'Vorlaufzeit (Tage)', 'Bezugsjahr', 'Empfänger', 'Gesendet am'], $rows);
+        $csv = $this->csvExporter->toCsv(['Mitglied', 'Art', 'Vorlaufzeit (Tage)', 'Bezugsjahr', 'Empfänger', 'Erstellt am'], $rows);
         return new DataDownloadResponse($csv, 'versand-log.csv', 'text/csv; charset=UTF-8');
     }
 

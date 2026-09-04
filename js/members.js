@@ -766,7 +766,7 @@
 				el('th', { text: t('Vorlaufzeit') }),
 				el('th', { text: t('Bezugsjahr') }),
 				el('th', { text: t('Empfänger') }),
-				el('th', { text: t('Gesendet am') }),
+				el('th', { text: t('Erstellt am') }),
 			]));
 			entries.forEach(function (entry) {
 				table.appendChild(el('tr', {}, [
