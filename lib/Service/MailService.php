@@ -68,14 +68,14 @@ final class MailService {
     private function reminderSubject(Member $member, int $daysBefore, ?int $age, DateTimeImmutable $targetDate, bool $birthdateInSubject): string {
         $details = [$age !== null ? sprintf('wird %d', $age) : 'Alter unbekannt'];
         if ($birthdateInSubject) {
-            $details[] = $targetDate->format('d.m.');
+            $details[] = $targetDate->format('d.m.Y');
         }
         $suffix = ' (' . implode(', ', $details) . ')';
 
         if ($daysBefore === 0) {
-            return sprintf('%s hat heute Geburtstag%s', $member->displayName, $suffix);
+            return sprintf('%s%s hat heute Geburtstag', $member->displayName, $suffix);
         }
-        return sprintf('%s hat in %d Tag(en) Geburtstag%s', $member->displayName, $daysBefore, $suffix);
+        return sprintf('%s%s hat in %d Tag(en) Geburtstag', $member->displayName, $suffix, $daysBefore);
     }
 
     private function reminderBody(Member $member, int $daysBefore, DateTimeImmutable $targetDate, ?int $age): string {
